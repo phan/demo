@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <title>PIB: PHP in Browser</title>
+    <title>PHAN in Browser</title>
     <script src="//ajaxorg.github.io/ace-builds/src-min/ace.js" type="text/javascript" charset="utf-8"></script>
     <style>
         body {
@@ -118,7 +118,7 @@
         output_area.open();
 
         function init() {
-
+            // TODO: Change this to a monospace element without HTML
             output_area.close();
             output_area.write("Click RUN");
             output_area.close();
@@ -135,7 +135,9 @@
                 }
                 code = code.replace(/^\s*<\?php/, "") // remove <?php
                 code = code + "\necho PHP_EOL;" // flush line buffer
+                console.log('evaluating code');
                 let ret = Module.ccall('pib_eval', 'number', ["string"], [code])
+                console.log('done evaluating code', ret);
                 if (ret != 0) {
                     output_area.write("Error, please check your code")
                 }
@@ -149,6 +151,7 @@
             ],
             postRun: [init],
             print: function (text) {
+                console.log('print', arguments);
 
                 if (arguments.length > 1) {
                     text = Array.prototype.slice.call(arguments).join(' ');
@@ -156,6 +159,7 @@
                 output_area.write(text)
             },
             printErr: function (text) {
+                console.log('printErr', arguments);
 
                 if (arguments.length > 1) {
                     text = Array.prototype.slice.call(arguments).join(' ');

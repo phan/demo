@@ -1,14 +1,17 @@
 #!/bin/bash
 
 echo "Get PHP source"
-wget https://downloads.php.net/~cmb/php-7.3.0beta2.tar.xz
-tar xf php-7.3.0beta2.tar.xz
+wget https://downloads.php.net/~cmb/php-7.3.0beta3.tar.xz
+tar xf php-7.3.0beta3.tar.xz
+
+echo "Get Phan phar"
+wget https://github.com/phan/phan/releases/download/1.0.1/phan.phar -O phan-1.0.1.phar
 
 echo "Apply patch"
 patch -p0 -i mods.diff
 
 echo "Configure"
-cd php-7.3.0beta2
+cd php-7.3.0beta3
 emconfigure ./configure \
   --disable-all \
   --disable-cgi \
@@ -16,6 +19,7 @@ emconfigure ./configure \
   --disable-rpath \
   --disable-phpdbg \
   --without-pear \
+  --without-valgrind \
   --without-pcre-jit \
   --with-layout=GNU \
   --enable-embed=static \
@@ -37,6 +41,7 @@ emcc -O3 \
   -s ASSERTIONS=0 \
   -s INVOKE_RUN=0 \
   --preload-file Zend/bench.php \
+  --preload-file phan-1.0.1.phar \
   libs/libphp7.a pib_eval.o -o out/php.html
 
 cp out/php.wasm out/php.js out/php.data ..
