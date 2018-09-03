@@ -35,19 +35,22 @@
         }
 
         .playground-editor {
-            flex: 1 1 auto;
+            width: 50%;
+            flex: 1 0 auto;
             position: relative;
             border: 4px solid #bbb;
             border-radius: 4px;
         }
 
         #output {
-            flex: 1 1 auto;
+            width: 50%;
+            flex: 1 0 auto;
             position: relative;
             margin-left: 0.5em;
             background: #f9ffff;
             border: 1px solid #bbb;
             border-right: none;
+            overflow-y: auto;
         }
 
         #editor {
@@ -92,8 +95,7 @@
             <div class="playground-editor">
                 <div id="editor"></div>
             </div>
-            <iframe allow="midi; geolocation; microphone; camera; encrypted-media;" sandbox="allow-forms allow-scripts allow-same-origin allow-modals allow-popups"
-                id="output"></iframe>
+            <pre id="output"></pre>
         </div>
     </div>
     <a href="https://github.com/oraoto/pib"><img style="z-index: 1;position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
@@ -103,7 +105,7 @@
         editor.session.setMode("ace/mode/php");
         editor.setShowPrintMargin(false);
 
-        var default_code = "<?php\n\nphpinfo();\n"
+        var default_code = "<"+"?php\n\nphpinfo();\n"
 
         var query = new URLSearchParams(document.location.search);
         if (query.has('code')) {
@@ -114,19 +116,16 @@
 
         var input_area = document.getElementById('input');
         var run_button = document.getElementById('run');
-        var output_area = document.getElementById('output').contentWindow.document;
-        output_area.open();
+        var output_area = document.getElementById('output');
 
         function init() {
             // TODO: Change this to a monospace element without HTML
-            output_area.close();
-            output_area.write("Click RUN");
-            output_area.close();
+            output_area.innerText = "Click RUN";
 
             run_button.disabled = false
             run_button.textContent = "Run"
             run_button.addEventListener('click', function () {
-                output_area.close();
+                output_area.innerText = '';
                 var code = editor.getValue();
                 var query = new URLSearchParams();
                 if (code.length < 1024) {
@@ -139,9 +138,8 @@
                 let ret = Module.ccall('pib_eval', 'number', ["string"], [code])
                 console.log('done evaluating code', ret);
                 if (ret != 0) {
-                    output_area.write("Error, please check your code")
+                    output_area.innerText += "Error, please check your code";
                 }
-                output_area.close();
             });
         }
 
@@ -156,7 +154,7 @@
                 if (arguments.length > 1) {
                     text = Array.prototype.slice.call(arguments).join(' ');
                 }
-                output_area.write(text)
+                output_area.innerText += text + "\n";
             },
             printErr: function (text) {
                 console.log('printErr', arguments);
@@ -164,7 +162,7 @@
                 if (arguments.length > 1) {
                     text = Array.prototype.slice.call(arguments).join(' ');
                 }
-                output_area.write(text)
+                output_area.innerText += text + "\n";
             }
 
         };
