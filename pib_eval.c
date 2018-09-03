@@ -1,4 +1,5 @@
 #include "sapi/embed/php_embed.h"
+#include "Zend/zend_exceptions.h"
 #include <emscripten.h>
 
 // Source: php-src/sapi/php_cli.c
@@ -43,15 +44,35 @@ static void pib_cli_register_file_handles(void) /* {{{ */
 }
 /* }}} */
 
+// Based on void zend_exception_error
+int pib_report_exception(zend_object *ex) {
+    printf("exception=%llx\n", (long long)ex);
+    zval exception;
+
+    ZVAL_OBJ(&exception, ex);
+    zend_class_entry *ce_exception = Z_OBJCE(exception);
+    if (ce_exception) {
+        printf("Uncaught throwable '%s'\n", ZSTR_VAL(ce_exception->name));
+    }
+    // TODO: Cast to string and report it.
+}
+
 // Based on code by https://github.com/oraoto/pib with modifications.
 int EMSCRIPTEN_KEEPALIVE pib_eval(char *code) {
     int ret = 0;
     php_embed_init(0, NULL);
+    pib_cli_register_file_handles();
     zend_first_try {
-        pib_cli_register_file_handles();
         ret = zend_eval_string(code, NULL, "PIB");
+
+        // If there was an uncaught error/exception, then report it.
+        zend_object *ex = EG(exception);
+        if (ex != NULL) {
+            pib_report_exception(ex);
+        }
     } zend_catch {
         ret = EG(exit_status);
     } zend_end_try();
+    php_embed_shutdown();
     return ret;
 }
