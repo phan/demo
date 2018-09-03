@@ -45,7 +45,7 @@ static void pib_cli_register_file_handles(void) /* {{{ */
 /* }}} */
 
 // Based on void zend_exception_error
-int pib_report_exception(zend_object *ex) {
+static void pib_report_exception(zend_object *ex) {
     printf("exception=%llx\n", (long long)ex);
     zval exception;
 
@@ -71,6 +71,11 @@ int EMSCRIPTEN_KEEPALIVE pib_eval(char *code) {
             pib_report_exception(ex);
         }
     } zend_catch {
+		printf("In zend_catch\n");
+        zend_object *ex = EG(exception);
+        if (ex != NULL) {
+            pib_report_exception(ex);
+        }
         ret = EG(exit_status);
     } zend_end_try();
     php_embed_shutdown();

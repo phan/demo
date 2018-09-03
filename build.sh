@@ -1,17 +1,33 @@
 #!/bin/bash
+set -xeu
+
+if ! type emconfigure >/dev/null; then
+    echo "Must load emconfigure (e.g. with emsdk)" 1>&2
+    exit 1
+fi
 
 echo "Get PHP source"
-wget https://downloads.php.net/~cmb/php-7.3.0beta3.tar.xz
+if [ ! -e php-7.3.0beta3.tar.xz ]; then
+    wget https://downloads.php.net/~cmb/php-7.3.0beta3.tar.xz
+fi
+rm -rf php-7.3.0beta3 || true
 tar xf php-7.3.0beta3.tar.xz
 
 echo "Get Phan phar"
-wget https://github.com/phan/phan/releases/download/1.0.1/phan.phar -O phan-1.0.1.phar
+if [ ! -e phan-1.0.1.phar ]; then
+    wget https://github.com/phan/phan/releases/download/1.0.1/phan.phar -O phan-1.0.1.phar
+fi
+
+cp phan-1.0.1.phar php-7.3.0beta3/
 
 echo "Apply patch"
 patch -p0 -i mods.diff
 
 echo "Configure"
 cd php-7.3.0beta3
+
+export CFLAGS=-O2
+
 emconfigure ./configure \
   --disable-all \
   --disable-cgi \
@@ -22,14 +38,18 @@ emconfigure ./configure \
   --without-valgrind \
   --without-pcre-jit \
   --with-layout=GNU \
-  --enable-embed=static \
+  --enable-ast \
   --enable-bcmath \
-  --enable-json \
   --enable-ctype \
+  --enable-embed=static \
+  --enable-filter \
+  --enable-json \
+  --enable-phar \
   --enable-tokenizer
 
 echo "Build"
-emmake make
+# TODO: Does -j5 work for parallel builds?
+emmake make -j5
 mkdir out
 emcc -O3 -I . -I Zend -I main -I TSRM/ ../pib_eval.c -o pib_eval.o
 emcc -O3 \
