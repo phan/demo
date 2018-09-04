@@ -1,6 +1,5 @@
 <?php
 
-
 use Phan\CLI;
 use Phan\Phan;
 use Phan\Config;
