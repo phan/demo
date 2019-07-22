@@ -436,15 +436,14 @@ static void *zend_mm_mmap(size_t size, size_t alignment)
     }
     uintptr_t *real_address = (uintptr_t*) returned_ptr;
     real_address[-1] = (intptr_t) ptr;
-    fprintf(stderr, "Allocating %llx(from %llx) of size %lld", (long long) returned_ptr, (long long) ptr, (long long) size);
+    fprintf(stderr, "Allocating %llx(from block %llx) of size %lld", (long long) returned_ptr, (long long) ptr, (long long) size);
     return returned_ptr;
 }
 
 static void zend_mm_munmap(void *addr, size_t size)
 {
-    uintptr_t *real_address = (uintptr_t*) addr;
-    void * addr_to_free = (void*) real_address[-1];
-    fprintf(stderr, "Freeing %llx(from %llx) of size %lld", (long long) real_address, (long long) addr, (long long) size);
+    void * addr_to_free = (void*) ((uintptr_t*) addr)[-1];
+    fprintf(stderr, "Freeing %llx(from block %llx) of size %lld", (long long) addr_to_free, (long long) addr, (long long) size);
 
     return free(addr_to_free);
 }
