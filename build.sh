@@ -33,7 +33,7 @@ echo "Configure"
 
 # https://emscripten.org/docs/porting/Debugging.html
 # -g4 can be used to generate source maps for debugging C crashes
-export CFLAGS=-g4
+export CFLAGS=-O3
 cd $PHP_PATH
 emconfigure ./configure \
   --disable-all \
@@ -59,11 +59,12 @@ emconfigure ./configure \
 
 echo "Build"
 # -j5 seems to work for parallel builds
+emmake make clean
 emmake make -j5
 mkdir -p out
-emcc -g4 -I . -I Zend -I main -I TSRM/ ../pib_eval.c -o pib_eval.o
+emcc $CFLAGS -I . -I Zend -I main -I TSRM/ ../pib_eval.c -o pib_eval.o
 # NOTE: If this crashes with code 16, ASSERTIONS=1 is useful
-emcc -g4 \
+emcc $CFLAGS \
   --llvm-lto 2 \
   -s ENVIRONMENT=web \
   -s EXPORTED_FUNCTIONS='["_pib_eval", "_php_embed_init", "_zend_eval_string", "_php_embed_shutdown"]' \
@@ -71,7 +72,7 @@ emcc -g4 \
   -s MODULARIZE=1 \
   -s EXPORT_NAME="'PHP'" \
   -s TOTAL_MEMORY=134217728 \
-  -s ASSERTIONS=1 \
+  -s ASSERTIONS=0 \
   -s INVOKE_RUN=0 \
   -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
   --preload-file Zend/bench.php \

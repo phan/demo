@@ -440,9 +440,14 @@ static void *zend_mm_mmap(size_t size, size_t alignment)
     return returned_ptr;
 }
 
+static void *get_addr_to_free(void *addr)
+{
+    return (void*) ((uintptr_t*) addr)[-1];
+}
+
 static void zend_mm_munmap(void *addr, size_t size)
 {
-    void * addr_to_free = (void*) ((uintptr_t*) addr)[-1];
+    void * addr_to_free = get_addr_to_free(addr);
     fprintf(stderr, "Freeing %llx(from block %llx) of size %lld", (long long) addr_to_free, (long long) addr, (long long) size);
 
     return free(addr_to_free);
@@ -663,62 +668,24 @@ static void *zend_mm_chunk_alloc_int(size_t size, size_t alignment)
 
 static void *zend_mm_chunk_alloc(zend_mm_heap *heap, size_t size, size_t alignment)
 {
-#if ZEND_MM_STORAGE
-	if (UNEXPECTED(heap->storage)) {
-		void *ptr = heap->storage->handlers.chunk_alloc(heap->storage, size, alignment);
-		ZEND_ASSERT(((zend_uintptr_t)((char*)ptr + (alignment-1)) & (alignment-1)) == (zend_uintptr_t)ptr);
-		return ptr;
-	}
-#endif
 	return zend_mm_chunk_alloc_int(size, alignment);
 }
 
 static void zend_mm_chunk_free(zend_mm_heap *heap, void *addr, size_t size)
 {
-#if ZEND_MM_STORAGE
-	if (UNEXPECTED(heap->storage)) {
-		heap->storage->handlers.chunk_free(heap->storage, addr, size);
-		return;
-	}
-#endif
 	zend_mm_munmap(addr, size);
 }
 
 static int zend_mm_chunk_truncate(zend_mm_heap *heap, void *addr, size_t old_size, size_t new_size)
 {
-#if ZEND_MM_STORAGE
-	if (UNEXPECTED(heap->storage)) {
-		if (heap->storage->handlers.chunk_truncate) {
-			return heap->storage->handlers.chunk_truncate(heap->storage, addr, old_size, new_size);
-		} else {
-			return 0;
-		}
-	}
-#endif
-#ifndef _WIN32
-	zend_mm_munmap((char*)addr + new_size, old_size - new_size);
-	return 1;
-#else
-	return 0;
-#endif
+    // fail
+    return 0;
 }
 
 static int zend_mm_chunk_extend(zend_mm_heap *heap, void *addr, size_t old_size, size_t new_size)
 {
-#if ZEND_MM_STORAGE
-	if (UNEXPECTED(heap->storage)) {
-		if (heap->storage->handlers.chunk_extend) {
-			return heap->storage->handlers.chunk_extend(heap->storage, addr, old_size, new_size);
-		} else {
-			return 0;
-		}
-	}
-#endif
-#ifndef _WIN32
-	return (zend_mm_mmap_fixed((char*)addr + old_size, new_size - old_size) != NULL);
-#else
+    // fail
 	return 0;
-#endif
 }
 
 static zend_always_inline void zend_mm_chunk_init(zend_mm_heap *heap, zend_mm_chunk *chunk)
