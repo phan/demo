@@ -418,41 +418,35 @@ stderr_last_error(char *msg)
 
 static void *zend_mm_mmap_fixed(void *addr, size_t size)
 {
-#ifdef _WIN32
-	return VirtualAlloc(addr, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-#else
-	int flags = MAP_PRIVATE | MAP_ANON;
-#if defined(MAP_EXCL)
-	flags |= MAP_FIXED | MAP_EXCL;
-#endif
-	/* MAP_FIXED leads to discarding of the old mapping, so it can't be used. */
-	void *ptr = mmap(addr, size, PROT_READ | PROT_WRITE, flags /*| MAP_POPULATE | MAP_HUGETLB*/, -1, 0);
-
-	if (ptr == MAP_FAILED) {
-#if ZEND_MM_ERROR && !defined(MAP_EXCL)
-		fprintf(stderr, "\nmmap() failed: [%d] %s\n", errno, strerror(errno));
-#endif
-		return NULL;
-	} else if (ptr != addr) {
-		if (munmap(ptr, size) != 0) {
-#if ZEND_MM_ERROR
-			fprintf(stderr, "\nmunmap() failed: [%d] %s\n", errno, strerror(errno));
-#endif
-		}
-		return NULL;
-	}
-	return ptr;
-#endif
+    fprintf(stderr, "zend_mmap_fixed not implemented\n");
+    return NULL;
 }
 
-static void *zend_mm_mmap(size_t size)
+static void *zend_mm_mmap(size_t size, size_t alignment)
 {
-    return malloc(size);
+    size_t total_size = size + alignment + sizeof(uintptr_t);
+    void * const ptr = malloc(total_size);
+    if (ptr == NULL) {
+        return NULL;
+    }
+    uint8_t * returned_ptr = ((uint8_t*)ptr) + sizeof(uintptr_t);
+    size_t offset = ZEND_MM_ALIGNED_OFFSET(returned_ptr, alignment);
+    if (offset > 0) {
+        returned_ptr += (alignment - offset);
+    }
+    uintptr_t *real_address = (uintptr_t*) returned_ptr;
+    real_address[-1] = (intptr_t) ptr;
+    fprintf(stderr, "Allocating %llx(from %llx) of size %lld", (long long) returned_ptr, (long long) ptr, (long long) size);
+    return returned_ptr;
 }
 
 static void zend_mm_munmap(void *addr, size_t size)
 {
-    return free(addr);
+    uintptr_t *real_address = (uintptr_t*) addr;
+    void * addr_to_free = (void*) real_address[-1];
+    fprintf(stderr, "Freeing %llx(from %llx) of size %lld", (long long) real_address, (long long) addr, (long long) size);
+
+    return free(addr_to_free);
 }
 
 /***********/
@@ -663,52 +657,9 @@ static zend_always_inline int zend_mm_bitset_is_free_range(zend_mm_bitset *bitse
 
 static void *zend_mm_chunk_alloc_int(size_t size, size_t alignment)
 {
-	void *ptr = zend_mm_mmap(size);
+	void *ptr = zend_mm_mmap(size, alignment);
 
-	if (ptr == NULL) {
-		return NULL;
-	} else if (ZEND_MM_ALIGNED_OFFSET(ptr, alignment) == 0) {
-#ifdef MADV_HUGEPAGE
-		if (zend_mm_use_huge_pages) {
-			madvise(ptr, size, MADV_HUGEPAGE);
-		}
-#endif
-		return ptr;
-	} else {
-		size_t offset;
-
-		/* chunk has to be aligned */
-		zend_mm_munmap(ptr, size);
-		ptr = zend_mm_mmap(size + alignment - REAL_PAGE_SIZE);
-#ifdef _WIN32
-		offset = ZEND_MM_ALIGNED_OFFSET(ptr, alignment);
-		zend_mm_munmap(ptr, size + alignment - REAL_PAGE_SIZE);
-		ptr = zend_mm_mmap_fixed((void*)((char*)ptr + (alignment - offset)), size);
-		offset = ZEND_MM_ALIGNED_OFFSET(ptr, alignment);
-		if (offset != 0) {
-			zend_mm_munmap(ptr, size);
-			return NULL;
-		}
-		return ptr;
-#else
-		offset = ZEND_MM_ALIGNED_OFFSET(ptr, alignment);
-		if (offset != 0) {
-			offset = alignment - offset;
-			zend_mm_munmap(ptr, offset);
-			ptr = (char*)ptr + offset;
-			alignment -= offset;
-		}
-		if (alignment > REAL_PAGE_SIZE) {
-			zend_mm_munmap((char*)ptr + size, alignment - REAL_PAGE_SIZE);
-		}
-# ifdef MADV_HUGEPAGE
-		if (zend_mm_use_huge_pages) {
-			madvise(ptr, size, MADV_HUGEPAGE);
-		}
-# endif
-#endif
-		return ptr;
-	}
+    return ptr;
 }
 
 static void *zend_mm_chunk_alloc(zend_mm_heap *heap, size_t size, size_t alignment)

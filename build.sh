@@ -58,12 +58,12 @@ emconfigure ./configure \
   --enable-tokenizer
 
 echo "Build"
-# TODO: Does -j5 work for parallel builds?
+# -j5 seems to work for parallel builds
 emmake make -j5
 mkdir -p out
-emcc -O3 -I . -I Zend -I main -I TSRM/ ../pib_eval.c -o pib_eval.o
+emcc -g4 -I . -I Zend -I main -I TSRM/ ../pib_eval.c -o pib_eval.o
 # NOTE: If this crashes with code 16, ASSERTIONS=1 is useful
-emcc -O3 \
+emcc -g4 \
   --llvm-lto 2 \
   -s ENVIRONMENT=web \
   -s EXPORTED_FUNCTIONS='["_pib_eval", "_php_embed_init", "_zend_eval_string", "_php_embed_shutdown"]' \
