@@ -61,7 +61,8 @@ static void pib_report_exception(zend_object *ex) {
 // Based on code by https://github.com/oraoto/pib with modifications.
 int EMSCRIPTEN_KEEPALIVE pib_eval(char *code) {
     int ret = 0;
-    putenv("USE_ZEND_ALLOC=0");
+    // USE_ZEND_ALLOC prevents using fast shutdown.
+    // putenv("USE_ZEND_ALLOC=0");
     php_embed_init(0, NULL);
     pib_cli_register_file_handles();
     zend_first_try {

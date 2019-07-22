@@ -9,10 +9,12 @@ php $PHAN_PATH --version || exit 1
 
 set -xeu
 mkdir -p out
-emcc -O3 -I . -I Zend -I main -I TSRM/ ../pib_eval.c -o pib_eval.o
+CFLAGS=-g4
+#CFLAGS=-O3
+emcc $CFLAGS -I . -I Zend -I main -I TSRM/ ../pib_eval.c -o pib_eval.o
 # TODO disable assertions
-emcc -O3 \
-  --llvm-lto 2 \
+# --llvm-lto 2 \
+emcc $CFLAGS \
   -s ENVIRONMENT=web \
   -s EXPORTED_FUNCTIONS='["_pib_eval", "_php_embed_init", "_zend_eval_string", "_php_embed_shutdown"]' \
   -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall"]' \
