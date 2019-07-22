@@ -45,9 +45,11 @@ file_put_contents('/Zend/fail.php', '<'.'?php echo 2 2;');
 Config::setValue('directory_list', ['/Zend']);
 
 // Create our CLI interface and load arguments
-// $cli = new CLI();
+// TODO: provide an array
+$cli = CLI::fromRawValues(['allow-polyfill-parser' => false], []);
 
 // Analyze the file list provided via the CLI
+
 $is_issue_found =
     Phan::analyzeFileList(
         $code_base,
@@ -62,7 +64,8 @@ $is_issue_found =
 // Provide an exit status code based on if
 // issues were found
 // TODO: Maybe resume instead
-exit($is_issue_found ? EXIT_ISSUES_FOUND : EXIT_SUCCESS);
+echo "Phan analysis completed: is_issue_found = " . json_encode($is_issue_found) . "\n";
+// exit($is_issue_found ? EXIT_ISSUES_FOUND : EXIT_SUCCESS);
 
 } catch (Throwable $e) {
     echo "Caught\n";

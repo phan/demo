@@ -5,11 +5,12 @@ if [ ! -d Zend ]; then
 fi
 PHAN_PATH=phan-2.2.6.phar
 # Check that the phar is not corrupt
-php $PHAN_PATH --help || exit 1
+php $PHAN_PATH --version || exit 1
 
 set -xeu
 mkdir -p out
 emcc -O3 -I . -I Zend -I main -I TSRM/ ../pib_eval.c -o pib_eval.o
+# TODO disable assertions
 emcc -O3 \
   --llvm-lto 2 \
   -s ENVIRONMENT=web \
@@ -18,7 +19,7 @@ emcc -O3 \
   -s MODULARIZE=1 \
   -s EXPORT_NAME="'PHP'" \
   -s TOTAL_MEMORY=134217728 \
-  -s ASSERTIONS=0 \
+  -s ASSERTIONS=1 \
   -s INVOKE_RUN=0 \
   -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
   --preload-file Zend/bench.php \

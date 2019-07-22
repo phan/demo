@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# TODO: https://emscripten.org/docs/porting/Debugging.html
 set -xeu
 
 PHP_VERSION=7.3.7
@@ -22,13 +23,15 @@ if [ ! -e $PHAN_PATH ]; then
     wget https://github.com/phan/phan/releases/download/$PHAN_VERSION/phan.phar -O $PHAN_PATH
 fi
 # Check that the phar is not corrupt
-php $PHAN_PATH --help || exit 1
+php $PHAN_PATH --version || exit 1
 
 cp $PHAN_PATH $PHP_PATH/
 
 echo "Configure"
 
-export CFLAGS=-O2
+# https://emscripten.org/docs/porting/Debugging.html
+# -g4 can be used to generate source maps for debugging C crashes
+export CFLAGS=-g4
 cd $PHP_PATH
 emconfigure ./configure \
   --disable-all \
@@ -57,6 +60,7 @@ echo "Build"
 emmake make -j5
 mkdir -p out
 emcc -O3 -I . -I Zend -I main -I TSRM/ ../pib_eval.c -o pib_eval.o
+# NOTE: If this crashes with code 16, ASSERTIONS=1 is useful
 emcc -O3 \
   --llvm-lto 2 \
   -s ENVIRONMENT=web \
@@ -65,7 +69,7 @@ emcc -O3 \
   -s MODULARIZE=1 \
   -s EXPORT_NAME="'PHP'" \
   -s TOTAL_MEMORY=134217728 \
-  -s ASSERTIONS=0 \
+  -s ASSERTIONS=1 \
   -s INVOKE_RUN=0 \
   -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
   --preload-file Zend/bench.php \
