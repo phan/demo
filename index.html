@@ -165,7 +165,9 @@
                     history.replaceState({}, document.title, "?" + query.toString());
                 }
                 var analysisWrapper = document.getElementById('phan_runner_source').innerText;
-                var contentsFragment = "rawurldecode('" + encodeURIComponent(code) + "')";
+                // single quotes aren't escaped by encodeURIComponent, but double quotes are.
+                // Other problematic characters are escaped, and this preserves UTF-8.
+                var contentsFragment = 'rawurldecode("' + encodeURIComponent(code) + '")';
                 var analysisCode = analysisWrapper.replace('$CONTENTS_TO_ANALYZE', contentsFragment);
                 console.log(analysisCode);
 
