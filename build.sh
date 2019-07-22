@@ -9,8 +9,10 @@ PHAN_VERSION=2.2.6
 PHAN_PATH=phan-$PHAN_VERSION.phar
 
 echo "Get PHP source"
-if [ ! -e $PHP_PATH.tar.xz ]; then
-    wget https://www.php.net/distributions/$PHP_PATH.tar.xz
+if [ ! -d $PHP_PATH ]; then
+    if [ ! -e $PHP_PATH.tar.xz ]; then
+        wget https://www.php.net/distributions/$PHP_PATH.tar.xz
+    fi
     tar xf $PHP_PATH.tar.xz
 
     echo "Apply patch"

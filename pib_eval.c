@@ -3,8 +3,6 @@
 #include <emscripten.h>
 #include <stdlib.h>
 
-static bool did_register_file_handles = false;
-
 // Source: php-src/sapi/php_cli.c
 static void pib_cli_register_file_handles(void) /* {{{ */
 {
