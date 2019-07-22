@@ -1,5 +1,6 @@
 #include "sapi/embed/php_embed.h"
 #include "Zend/zend_exceptions.h"
+#include "Zend/zend_interfaces.h"
 #include <emscripten.h>
 #include <stdlib.h>
 
@@ -66,10 +67,20 @@ static void pib_report_exception(zend_object *ex) {
     if (ce_exception) {
         zval rv;
         fprintf(stderr, "Uncaught throwable '%s'\n", ZSTR_VAL(ce_exception->name));
-		zend_string *str = zval_get_string(GET_PROPERTY_SILENT(&exception, ZEND_STR_STRING));
 		zend_string *file = zval_get_string(GET_PROPERTY_SILENT(&exception, ZEND_STR_FILE));
 		zend_long line = zval_get_long(GET_PROPERTY_SILENT(&exception, ZEND_STR_LINE));
-        fprintf(stderr, "At %s:%d:\n%s\n", ZSTR_VAL(file), line, ZSTR_VAL(str));
+        fprintf(stderr, "At %s:%d\n", ZSTR_VAL(file), line);
+        if (instanceof_function(ce_exception, zend_ce_throwable)) {
+            zval tmp;
+            // TODO handle uncaught exception caused by __toString()
+            zend_call_method_with_0_params(&exception, ce_exception, &ex->ce->__tostring, "__tostring", &tmp);
+            if (Z_TYPE(tmp) == IS_STRING) {
+                fprintf(stderr, "%s", Z_STRVAL(tmp));
+            } else {
+                fprintf(stderr, "Calling __toString failed\n");
+            }
+            zval_ptr_dtor(&tmp);
+        }
     }
 }
 
