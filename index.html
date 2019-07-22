@@ -165,7 +165,7 @@
                     history.replaceState({}, document.title, "?" + query.toString());
                 }
                 var analysisWrapper = document.getElementById('phan_runner_source').innerText;
-                var contentsFragment = 'rawurldecode(' + encodeURIComponent(code) + ')';
+                var contentsFragment = "rawurldecode('" + encodeURIComponent(code) + "')";
                 var analysisCode = analysisWrapper.replace('$CONTENTS_TO_ANALYZE', contentsFragment);
                 console.log(analysisCode);
 
@@ -202,8 +202,8 @@ error_reporting(E_ALL);
 ini_set('display_errors', 'stderr');
 
 try {
-    var_export($_SERVER['argv'] = ['-a', '-b']);
-    var_export(getopt('ab'));
+    // var_export($_SERVER['argv'] = ['-a', '-b']);
+    // var_export(getopt('ab'));
     //require 'phar://phan-2.2.6.phar';
 
     $phar = 'phar://phan-2.2.6.phar';
@@ -213,11 +213,11 @@ try {
 // improvement if your system can handle it (which it
 // should be able to)
 gc_disable();
-echo "Successfully disabled gc\n";
+// echo "Successfully disabled gc\n";
 
 // Check the environment to make sure Phan can run successfully
 $data = require($phar . '/src/Phan/Language/Internal/ClassDocumentationMap.php');
-echo "Successfully loaded an array from the phar\n";
+// echo "Successfully loaded an array from the phar\n";
 require_once($phar . '/src/requirements.php');
 
 // Build a code base based on PHP internally defined
@@ -249,11 +249,10 @@ $is_issue_found =
 
 // Provide an exit status code based on if
 // issues were found
-echo "Phan analysis completed: is_issue_found = " . json_encode($is_issue_found) . "\n";
+// echo "Phan analysis completed: is_issue_found = " . json_encode($is_issue_found) . "\n";
 
 } catch (Throwable $e) {
-    echo "Caught\n";
-    echo $e;
+    echo "Caught $e\n";
 }
     </textarea>
 </body>

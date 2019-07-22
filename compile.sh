@@ -24,7 +24,6 @@ emcc $CFLAGS \
   -s ASSERTIONS=0 \
   -s INVOKE_RUN=0 \
   -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
-  --preload-file Zend/bench.php \
   --preload-file $PHAN_PATH \
   libs/libphp7.a pib_eval.o -o out/php.html
 
