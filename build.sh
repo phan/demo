@@ -19,6 +19,11 @@ if [ ! -d $PHP_PATH ]; then
     patch -p0 -i mods.diff
 fi
 
+# Copy workaround for mmap not working: https://github.com/emscripten-core/emscripten/issues/5187
+# We want to use Zend's allocator so that php's fast shutdown works, to avoid other issues.
+echo "Apply mmap workaround patch"
+cp zend_alloc.c $PHP_PATH/Zend/
+
 echo "Get Phan phar"
 
 if [ ! -e $PHAN_PATH ]; then
@@ -33,6 +38,7 @@ echo "Configure"
 
 # https://emscripten.org/docs/porting/Debugging.html
 # -g4 can be used to generate source maps for debugging C crashes
+# NOTE: If -g4 is used, then firefox can require a lot of memory to load the resulting file.
 export CFLAGS=-O3
 cd $PHP_PATH
 emconfigure ./configure \

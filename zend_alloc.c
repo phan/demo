@@ -4,6 +4,10 @@
    +----------------------------------------------------------------------+
    | Copyright (c) 1998-2018 Zend Technologies Ltd. (http://www.zend.com) |
    +----------------------------------------------------------------------+
+   | Patched by Tyson Andre to run without mmap for use in emscripten.    |
+   | Works around                                                         |
+   | https://github.com/emscripten-core/emscripten/issues/5187            |
+   |                                                                      |
    | This source file is subject to version 2.00 of the Zend license,     |
    | that is bundled with this package in the file LICENSE, and is        |
    | available through the world-wide-web at the following url:           |
