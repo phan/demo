@@ -3,7 +3,15 @@
 #include <emscripten.h>
 #include <stdlib.h>
 
+// From Zend/zend_exceptions.c for php 7.3
+#define GET_PROPERTY_SILENT(object, id) \
+	zend_read_property_ex(i_get_exception_base(object), (object), ZSTR_KNOWN(id), 1, &rv)
+
 // Source: php-src/sapi/php_cli.c
+static inline zend_class_entry *i_get_exception_base(zval *object) /* {{{ */
+{
+	return instanceof_function(Z_OBJCE_P(object), zend_ce_exception) ? zend_ce_exception : zend_ce_error;
+}
 static void pib_cli_register_file_handles(void) /* {{{ */
 {
     php_stream /* *s_in, */ *s_out, *s_err;
@@ -47,15 +55,22 @@ static void pib_cli_register_file_handles(void) /* {{{ */
 
 // Based on void zend_exception_error
 static void pib_report_exception(zend_object *ex) {
-    printf("exception=%llx\n", (long long)ex);
+    // printf("exception=%llx\n", (long long)ex);
     zval exception;
 
     ZVAL_OBJ(&exception, ex);
     zend_class_entry *ce_exception = Z_OBJCE(exception);
+
+    // Cast to string and report it.
+    // zend_exception_error(ex, E_ERROR);
     if (ce_exception) {
-        printf("Uncaught throwable '%s'\n", ZSTR_VAL(ce_exception->name));
+        zval rv;
+        fprintf(stderr, "Uncaught throwable '%s'\n", ZSTR_VAL(ce_exception->name));
+		zend_string *str = zval_get_string(GET_PROPERTY_SILENT(&exception, ZEND_STR_STRING));
+		zend_string *file = zval_get_string(GET_PROPERTY_SILENT(&exception, ZEND_STR_FILE));
+		zend_long line = zval_get_long(GET_PROPERTY_SILENT(&exception, ZEND_STR_LINE));
+        fprintf(stderr, "At %s:%d:\n%s\n", ZSTR_VAL(file), line, ZSTR_VAL(str));
     }
-    // TODO: Cast to string and report it.
 }
 
 // Based on code by https://github.com/oraoto/pib with modifications.

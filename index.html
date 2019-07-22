@@ -61,7 +61,10 @@
             left: 0;
         }
 
-        #run {
+        #analyze {
+            margin-right: 1.25em;
+        }
+        #run, #analyze {
             height: 3em;
             padding: 0 1.25em;
             display: flex;
@@ -89,6 +92,7 @@
 
     <div class="playground">
         <div class="playground-header">
+            <button id="analyze" disabled>Loading...</button>
             <button id="run" disabled>Loading...</button>
         </div>
         <div class="playground-split-vertical">
@@ -117,16 +121,30 @@
 
         var input_area = document.getElementById('input');
         var run_button = document.getElementById('run');
+        var analyze_button = document.getElementById('analyze');
         var output_area = document.getElementById('output');
 
         var phpModule;
 
+        function doRun(code) {
+            code = code + "\necho PHP_EOL;" // flush line buffer
+            console.log('evaluating code', code);
+            let ret = phpModule.ccall('pib_eval', 'number', ["string"], [code])
+            console.log('done evaluating code', ret);
+            if (ret != 0) {
+                output_area.innerText += "Error, please check your code";
+            }
+        }
+
         function init() {
             // TODO: Change this to a monospace element without HTML
-            output_area.innerText = "Click RUN";
+            output_area.innerText = "Click ANALYZE";
 
             run_button.disabled = false
+            analyze_button.disabled = false
             run_button.textContent = "Run"
+            analyze_button.textContent = "Analyze"
+
             run_button.addEventListener('click', function () {
                 output_area.innerText = '';
                 var code = editor.getValue();
@@ -136,13 +154,22 @@
                     history.replaceState({}, document.title, "?" + query.toString());
                 }
                 code = "?>" + code;
-                code = code + "\necho PHP_EOL;" // flush line buffer
-                console.log('evaluating code');
-                let ret = phpModule.ccall('pib_eval', 'number', ["string"], [code])
-                console.log('done evaluating code', ret);
-                if (ret != 0) {
-                    output_area.innerText += "Error, please check your code";
+                doRun(code);
+            });
+            analyze_button.addEventListener('click', function () {
+                output_area.innerText = '';
+                var code = editor.getValue();
+                var query = new URLSearchParams();
+                if (code.length < 1024) {
+                    query.append('code', encodeURIComponent(code));
+                    history.replaceState({}, document.title, "?" + query.toString());
                 }
+                var analysisWrapper = document.getElementById('phan_runner_source').innerText;
+                var contentsFragment = 'rawurldecode(' + encodeURIComponent(code) + ')';
+                var analysisCode = analysisWrapper.replace('$CONTENTS_TO_ANALYZE', contentsFragment);
+                console.log(analysisCode);
+
+                doRun(analysisCode);
             });
         }
 
@@ -167,6 +194,68 @@
         };
         phpModule = PHP(phpModuleOptions);
     </script>
+    <textarea style="display:none;" id="phan_runner_source">
+use Phan\CLI;
+use Phan\Phan;
+use Phan\Config;
+error_reporting(E_ALL);
+ini_set('display_errors', 'stderr');
+
+try {
+    var_export($_SERVER['argv'] = ['-a', '-b']);
+    var_export(getopt('ab'));
+    //require 'phar://phan-2.2.6.phar';
+
+    $phar = 'phar://phan-2.2.6.phar';
+
+
+// Phan does a ton of GC and this offers a major speed
+// improvement if your system can handle it (which it
+// should be able to)
+gc_disable();
+echo "Successfully disabled gc\n";
+
+// Check the environment to make sure Phan can run successfully
+$data = require($phar . '/src/Phan/Language/Internal/ClassDocumentationMap.php');
+echo "Successfully loaded an array from the phar\n";
+require_once($phar . '/src/requirements.php');
+
+// Build a code base based on PHP internally defined
+// functions, methods and classes before loading our
+// own
+$code_base = require_once($phar . '/src/codebase.php');
+
+require_once($phar . '/src/Phan/Bootstrap.php');
+
+file_put_contents('/Zend/fail.php', $CONTENTS_TO_ANALYZE);
+Config::setValue('directory_list', ['/Zend']);
+
+// Create our CLI interface and load arguments
+// TODO: provide an array
+$cli = CLI::fromRawValues(['allow-polyfill-parser' => false], []);
+
+// Analyze the file list provided via the CLI
+
+$is_issue_found =
+    Phan::analyzeFileList(
+        $code_base,
+        function (bool $recompute_file_list = false) use ($cli) : array {
+            if ($recompute_file_list) {
+                $cli->recomputeFileList();
+            }
+            return $cli->getFileList();
+        }  // Daemon mode will reload the file list.
+    );
+
+// Provide an exit status code based on if
+// issues were found
+echo "Phan analysis completed: is_issue_found = " . json_encode($is_issue_found) . "\n";
+
+} catch (Throwable $e) {
+    echo "Caught\n";
+    echo $e;
+}
+    </textarea>
 </body>
 
 </html>
