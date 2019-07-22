@@ -227,6 +227,9 @@ $code_base = require_once($phar . '/src/codebase.php');
 
 require_once($phar . '/src/Phan/Bootstrap.php');
 
+if (!is_dir('/Zend')) {
+    mkdir('/Zend');
+}
 file_put_contents('/Zend/fail.php', $CONTENTS_TO_ANALYZE);
 Config::setValue('directory_list', ['/Zend']);
 
@@ -251,7 +254,7 @@ $is_issue_found =
 // issues were found
 // echo "Phan analysis completed: is_issue_found = " . json_encode($is_issue_found) . "\n";
 
-} catch (Throwable $e) {
+} catch (\Throwable $e) {
     echo "Caught $e\n";
 }
     </textarea>
