@@ -6,6 +6,8 @@ fi
 PHAN_PATH=phan-2.2.6.phar
 # Check that the phar is not corrupt
 php $PHAN_PATH --version || exit 1
+# Ensure the allocator patches are applied.
+cp ../zend_alloc.c Zend/
 
 set -xeu
 mkdir -p out
