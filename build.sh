@@ -6,25 +6,28 @@ if ! type emconfigure >/dev/null; then
     exit 1
 fi
 
+PHP_VERSION=7.3.7
+PHAN_VERSION=2.2.6
+
 echo "Get PHP source"
-if [ ! -e php-7.3.0beta3.tar.xz ]; then
-    wget https://downloads.php.net/~cmb/php-7.3.0beta3.tar.xz
+if [ ! -e php-$PHP_VERSION.tar.xz ]; then
+    wget https://www.php.net/distributions/php-$PHP_VERSION.tar.xz
 fi
-rm -rf php-7.3.0beta3 || true
-tar xf php-7.3.0beta3.tar.xz
+rm -rf php-$PHP_VERSION || true
+tar xf php-$PHP_VERSION.tar.xz
 
 echo "Get Phan phar"
-if [ ! -e phan-1.0.1.phar ]; then
-    wget https://github.com/phan/phan/releases/download/1.0.1/phan.phar -O phan-1.0.1.phar
+if [ ! -e phan-$PHAN_VERSION.phar ]; then
+    wget https://github.com/phan/phan/releases/download/$PHAN_VERSION/phan.phar -O phan-$PHAN_VERSION.phar
 fi
 
-cp phan-1.0.1.phar php-7.3.0beta3/
+cp phan-$PHAN_VERSION.phar php-$PHP_VERSION/
 
 echo "Apply patch"
 patch -p0 -i mods.diff
 
 echo "Configure"
-cd php-7.3.0beta3
+cd php-$PHP_VERSION
 
 export CFLAGS=-O2
 
@@ -61,7 +64,7 @@ emcc -O3 \
   -s ASSERTIONS=0 \
   -s INVOKE_RUN=0 \
   --preload-file Zend/bench.php \
-  --preload-file phan-1.0.1.phar \
+  --preload-file phan-$PHAN_VERSION.phar \
   libs/libphp7.a pib_eval.o -o out/php.html
 
 cp out/php.wasm out/php.js out/php.data ..

@@ -4,7 +4,7 @@ This is based on [oraoto/pib](https://oraoto.github.io/pib/)
 
 TODO: Set up a demo.
 
-PHP Version: 7.3.0 beta3
+PHP Version: 7.3.7
 
 Firefox is recommended for a better user experience.
 
