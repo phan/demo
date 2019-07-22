@@ -2,22 +2,23 @@
 
 set -xeu
 
-PHP_VERSION=7.3.6
+PHP_VERSION=7.3.7
 PHP_PATH=php-$PHP_VERSION
 PHAN_VERSION=2.2.6
 PHAN_PATH=phan-$PHAN_VERSION.phar
 
 echo "Get PHP source"
-wget https://www.php.net/distributions/$PHP_PATH.tar.xz
-tar xf $PHP_PATH.tar.xz
-rm $PHP_PATH.tar.xz
+if [ ! -e $PHP_PATH.tar.xz ]; then
+    wget https://www.php.net/distributions/$PHP_PATH.tar.xz
+    tar xf $PHP_PATH.tar.xz
 
-echo "Apply patch"
-patch -p0 -i mods.diff
+    echo "Apply patch"
+    patch -p0 -i mods.diff
+fi
 
 echo "Get Phan phar"
 
-if [ ! -e phan-1.0.1.phar ]; then
+if [ ! -e $PHAN_PATH ]; then
     wget https://github.com/phan/phan/releases/download/$PHAN_VERSION/phan.phar -O $PHAN_PATH
 fi
 
