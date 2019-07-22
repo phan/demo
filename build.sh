@@ -21,6 +21,8 @@ echo "Get Phan phar"
 if [ ! -e $PHAN_PATH ]; then
     wget https://github.com/phan/phan/releases/download/$PHAN_VERSION/phan.phar -O $PHAN_PATH
 fi
+# Check that the phar is not corrupt
+php $PHAN_PATH --help || exit 1
 
 cp $PHAN_PATH $PHP_PATH/
 

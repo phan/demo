@@ -16,6 +16,8 @@ TODO:
 
 ### Using Docker
 
+TODO: would these instructions work for phan-demo?
+
 The quickest way to build PIB is by using Docker:
 
 ```
@@ -32,6 +34,14 @@ Steps:
 ## Known issues
 
 + Memory leak
+
+## Running locally
+
+This requires that a web server be running and serve static files.
+`python 3 -m http.server --bind 127.0.0.1 8080` is one way to do this.
+
+Then, copy `test.php` to run Phan on an example file.
+This will be tidied up once this works reliably.
 
 ## Acknowledgements
 

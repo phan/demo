@@ -3,21 +3,26 @@
 use Phan\CLI;
 use Phan\Phan;
 use Phan\Config;
+error_reporting(E_ALL);
+ini_set('display_errors', 'stderr');
 
 try {
     var_export($_SERVER['argv'] = ['-a', '-b']);
     var_export(getopt('ab'));
-    //require 'phar://phan-1.0.1.phar';
+    //require 'phar://phan-2.2.6.phar';
 
-    $phar = 'phar://phan-1.0.1.phar';
+    $phar = 'phar://phan-2.2.6.phar';
 
 
 // Phan does a ton of GC and this offers a major speed
 // improvement if your system can handle it (which it
 // should be able to)
 gc_disable();
+echo "Successfully disabled gc\n";
 
 // Check the environment to make sure Phan can run successfully
+$data = require($phar . '/src/Phan/Language/Internal/ClassDocumentationMap.php');
+echo "Successfully loaded an array from the phar\n";
 require_once($phar . '/src/requirements.php');
 
 // Build a code base based on PHP internally defined
@@ -56,6 +61,7 @@ $is_issue_found =
 
 // Provide an exit status code based on if
 // issues were found
+// TODO: Maybe resume instead
 exit($is_issue_found ? EXIT_ISSUES_FOUND : EXIT_SUCCESS);
 
 } catch (Throwable $e) {
