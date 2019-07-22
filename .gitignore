@@ -5,6 +5,7 @@ gh-pages
 
 
 php-7.*
+*.phar
 
 .*.swp
 .*.swo

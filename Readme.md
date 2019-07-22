@@ -12,17 +12,22 @@ Firefox is recommended for a better user experience.
 
 TODO:
 
-## Build
+## Building From Source
 
-Requirement:
+### Using Docker
 
-+ emsdk (>= 1.38.11): [Installation Instructions](https://github.com/juj/emsdk#installation-instructions)
-
-Build:
+The quickest way to build PIB is by using Docker:
 
 ```
-bash build.sh
+docker run --rm -v $(pwd):/src trzeci/emscripten:sdk-incoming-64bit bash build.sh
 ```
+
+### Setup Emscripten SDK (emsdk) manually
+
+Steps:
+
+1. Setup emsdk (>= 1.38.11), see [Installation Instructions](https://github.com/juj/emsdk#installation-instructions)
+2. Run `bash build.sh`
 
 ## Known issues
 

@@ -99,6 +99,7 @@
         </div>
     </div>
     <a href="https://github.com/oraoto/pib"><img style="z-index: 1;position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
+    <script type="text/javascript" src="php.js"></script>
     <script type='text/javascript'>
         var editor = ace.edit("editor");
         editor.setTheme("ace/theme/github");
@@ -118,6 +119,8 @@
         var run_button = document.getElementById('run');
         var output_area = document.getElementById('output');
 
+        var phpModule;
+
         function init() {
             // TODO: Change this to a monospace element without HTML
             output_area.innerText = "Click RUN";
@@ -135,7 +138,7 @@
                 code = "?>" + code;
                 code = code + "\necho PHP_EOL;" // flush line buffer
                 console.log('evaluating code');
-                let ret = Module.ccall('pib_eval', 'number', ["string"], [code])
+                let ret = phpModule.ccall('pib_eval', 'number', ["string"], [code])
                 console.log('done evaluating code', ret);
                 if (ret != 0) {
                     output_area.innerText += "Error, please check your code";
@@ -143,10 +146,7 @@
             });
         }
 
-        var Module = {
-            preRun: [
-                function() {ENV.USE_ZEND_ALLOC = "0"}
-            ],
+        var phpModuleOptions = {
             postRun: [init],
             print: function (text) {
                 console.log('print', arguments);
@@ -164,10 +164,9 @@
                 }
                 output_area.innerText += text + "\n";
             }
-
         };
+        phpModule = PHP(phpModuleOptions);
     </script>
-    <script async type="text/javascript" src="php.js"></script>
 </body>
 
 </html>

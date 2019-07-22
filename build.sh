@@ -1,42 +1,39 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 set -xeu
 
-if ! type emconfigure >/dev/null; then
-    echo "Must load emconfigure (e.g. with emsdk)" 1>&2
-    exit 1
-fi
-
-PHP_VERSION=7.3.7
+PHP_VERSION=7.3.6
+PHP_PATH=php-$PHP_VERSION
 PHAN_VERSION=2.2.6
+PHAN_PATH=phan-$PHAN_VERSION.phar
 
 echo "Get PHP source"
-if [ ! -e php-$PHP_VERSION.tar.xz ]; then
-    wget https://www.php.net/distributions/php-$PHP_VERSION.tar.xz
-fi
-rm -rf php-$PHP_VERSION || true
-tar xf php-$PHP_VERSION.tar.xz
-
-echo "Get Phan phar"
-if [ ! -e phan-$PHAN_VERSION.phar ]; then
-    wget https://github.com/phan/phan/releases/download/$PHAN_VERSION/phan.phar -O phan-$PHAN_VERSION.phar
-fi
-
-cp phan-$PHAN_VERSION.phar php-$PHP_VERSION/
+wget https://www.php.net/distributions/$PHP_PATH.tar.xz
+tar xf $PHP_PATH.tar.xz
+rm $PHP_PATH.tar.xz
 
 echo "Apply patch"
 patch -p0 -i mods.diff
 
+echo "Get Phan phar"
+
+if [ ! -e phan-1.0.1.phar ]; then
+    wget https://github.com/phan/phan/releases/download/$PHAN_VERSION/phan.phar -O $PHAN_PATH
+fi
+
+cp $PHAN_PATH $PHP_PATH/
+
 echo "Configure"
-cd php-$PHP_VERSION
 
 export CFLAGS=-O2
-
+cd $PHP_PATH
 emconfigure ./configure \
   --disable-all \
   --disable-cgi \
   --disable-cli \
   --disable-rpath \
   --disable-phpdbg \
+  --with-valgrind=no \
   --without-pear \
   --without-valgrind \
   --without-pcre-jit \
@@ -48,23 +45,28 @@ emconfigure ./configure \
   --enable-filter \
   --enable-json \
   --enable-phar \
+  --enable-mbstring \
+  --disable-mbregex \
   --enable-tokenizer
 
 echo "Build"
 # TODO: Does -j5 work for parallel builds?
 emmake make -j5
-mkdir out
+mkdir -p out
 emcc -O3 -I . -I Zend -I main -I TSRM/ ../pib_eval.c -o pib_eval.o
 emcc -O3 \
-  -s WASM=1 \
+  --llvm-lto 2 \
   -s ENVIRONMENT=web \
   -s EXPORTED_FUNCTIONS='["_pib_eval", "_php_embed_init", "_zend_eval_string", "_php_embed_shutdown"]' \
   -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall"]' \
+  -s MODULARIZE=1 \
+  -s EXPORT_NAME="'PHP'" \
   -s TOTAL_MEMORY=134217728 \
   -s ASSERTIONS=0 \
   -s INVOKE_RUN=0 \
+  -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
   --preload-file Zend/bench.php \
-  --preload-file phan-$PHAN_VERSION.phar \
+  --preload-file $PHAN_PATH \
   libs/libphp7.a pib_eval.o -o out/php.html
 
 cp out/php.wasm out/php.js out/php.data ..
