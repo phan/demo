@@ -1,18 +1,21 @@
 # Phan in Browser
 
-This is based on [oraoto/pib](https://oraoto.github.io/pib/)
-
 [Run Phan in your browser](https://tysonandre.github.io/phan-demo/) (Requires Firefox and at least 4GB of free RAM)].
 
 [![Preview](static/preview.png)](https://tysonandre.github.io/phan-demo/)
 
-- This uses emscripten to allow running both Phan and regular PHP scripts entirely in your browser.
+- This uses emscripten to allow analyzing (or running) PHP scripts entirely in your browser.
 
 PHP Version: 7.3.7
+[Phan](https://github.com/phan/phan) Version: 2.2.7-dev
 
-## Examples
+This is based on [oraoto/pib](https://oraoto.github.io/pib/) (PHP In Browser)
 
-TODO:
+## Known issues
+
++ Fatal errors (e.g. duplicate classes) do not get reported.
++ Parsing all of the emscripten code can require gigabytes of memory.
++ Chrome shows the "Aw, Snap" page (e.g. when you stop using the tab)
 
 ## Building From Source
 
@@ -33,17 +36,11 @@ Steps:
 1. Setup emsdk (>= 1.38.11), see [Installation Instructions](https://github.com/juj/emsdk#installation-instructions)
 2. Run `bash build.sh`
 
-## Known issues
-
-+ Fatal errors (e.g. duplicate classes) do not get reported.
-
 ## Running locally
 
 This requires that a web server be running and serve static files.
-`python 3 -m http.server --bind 127.0.0.1 8080` is one way to do this.
-
-Then, copy `test.php` to run Phan on an example file.
-This will be tidied up once this works reliably.
+`python 3 -m http.server --bind 127.0.0.1 8080` (from the root directory of phan-demo) is one way to do this.
+Then, open http://localhost:8080/
 
 ## Acknowledgements
 
