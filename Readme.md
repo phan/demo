@@ -4,6 +4,8 @@ This is based on [oraoto/pib](https://oraoto.github.io/pib/)
 
 [Run Phan in your browser](https://tysonandre.github.io/phan-demo/) (Requires Firefox and at least 4GB of free RAM)].
 
+[![Preview](static/preview.png)](https://tysonandre.github.io/phan-demo/)
+
 - This uses emscripten to allow running both Phan and regular PHP scripts entirely in your browser.
 
 PHP Version: 7.3.7
