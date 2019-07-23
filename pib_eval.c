@@ -71,6 +71,8 @@ static void pib_report_exception(zend_object *ex) {
 		zend_string *file = zval_get_string(GET_PROPERTY_SILENT(&exception, ZEND_STR_FILE));
 		zend_long line = zval_get_long(GET_PROPERTY_SILENT(&exception, ZEND_STR_LINE));
         fprintf(stderr, "At %s:%d\n", ZSTR_VAL(file), line);
+        /*
+        // Can't get this to work at the end of execution.
         if (instanceof_function(ce_exception, zend_ce_throwable)) {
             zval tmp;
             // TODO handle uncaught exception caused by __toString()
@@ -82,6 +84,7 @@ static void pib_report_exception(zend_object *ex) {
             }
             zval_ptr_dtor(&tmp);
         }
+        */
     }
 }
 
@@ -101,7 +104,6 @@ int EMSCRIPTEN_KEEPALIVE pib_eval(char *code) {
             pib_report_exception(ex);
         }
     } zend_catch {
-		printf("In zend_catch\n");
         zend_object *ex = EG(exception);
         if (ex != NULL) {
             EG(exception) = NULL;

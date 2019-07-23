@@ -1,9 +1,11 @@
-
+#!/usr/bin/env bash
+set -xeu
 if [ ! -d Zend ]; then
     echo "Must run $0 from within php-7.x directory" 1>&2
     exit 1
 fi
 PHAN_PATH=phan-2.2.6.phar
+cp ../$PHAN_PATH .
 # Check that the phar is not corrupt
 php $PHAN_PATH --version || exit 1
 # Ensure the allocator patches are applied.
