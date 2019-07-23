@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en-us">
+
+<head>
+    <meta charset="utf-8">
+    <title>Phan in Browser</title>
+    <script src="//ajaxorg.github.io/ace-builds/src-min/ace.js" type="text/javascript" charset="utf-8"></script>
+    <link rel="stylesheet" type="text/css" href="/static/demo.css" />
+</head>
+
+<body>
+    <div class="playground">
+        <div class="site-header">
+            <h1>Phan in Browser</h1>
+        </div>
+        <div class="playground-header">
+            <div class="editor-buttons">
+                <div class="button-wrapper">
+                    <button id="analyze" title="Analyze PHP Code with Phan" class="disabled" disabled="disabled">Loading...</button>
+                </div>
+                <div class="button-wrapper">
+                    <button id="run" title="Run PHP Code" class="disabled" disabled="disabled">Loading...</button>
+                </div>
+            </div>
+        </div>
+        <div class="playground-split-vertical">
+            <div class="playground-editor">
+                <div id="editor"></div>
+            </div>
+            <pre id="output"></pre>
+        </div>
+    </div>
+    <a href="https://github.com/TysonAndre/phan-demo"><img style="z-index: 1;position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
+    <script type="text/javascript" src="php.js"></script>
+    <script type="text/javascript" src="static/demo.js"></script>
+<!-- TODO: move this into a generated JS file -->
+    <textarea style="display:none;" id="phan_runner_source">
+
+use Phan\Config;
+use Phan\Issue;
+use Phan\IssueInstance;
+use Phan\Output\HTML;
+use Phan\Output\IssuePrinterInterface;
+use Symfony\Component\Console\Output\OutputInterface;
+
+
+use Phan\CLI;
+use Phan\Phan;
+error_reporting(E_ALL);
+ini_set('display_errors', 'stderr');
+
+try {
+    $phar = 'phar://phan-2.2.6.phar';
+    gc_disable();
+    $data = require($phar . '/src/Phan/Language/Internal/ClassDocumentationMap.php');
+    require_once($phar . '/src/requirements.php');
+
+$code_base = require_once($phar . '/src/codebase.php');
+
+require_once($phar . '/src/Phan/Bootstrap.php');
+
+
+file_put_contents('input', $CONTENTS_TO_ANALYZE);
+Config::setValue('file_list', ['input']);
+
+$cli = CLI::fromRawValues([
+    'output-mode' => 'html',
+    'allow-polyfill-parser' => false,
+    'redundant-condition-detection' => false,
+    'dead-code-detection' => false,
+], []);
+
+// Analyze the file list provided via the CLI
+$is_issue_found = Phan::analyzeFileList(
+    $code_base,
+    function (bool $recompute_file_list = false) use ($cli) : array {
+        return $cli->getFileList();
+    }
+);
+} catch (\Throwable $e) {
+    echo "Caught $e\n";
+}
+    </textarea>
+    <textarea style="display:none;" id="eval_wrapper_source">
+function demo_error_handler(int $errno, string $errstr, string $errfile, int $errline) : bool {
+    fwrite(STDERR, "$errfile:$errline [$errno] $errstr\n");
+    ob_start();
+    debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+    fwrite(STDERR, ob_get_clean());
+    return false;
+}
+try {
+    error_reporting(E_ALL);
+    ini_set("display_errors", "stderr");
+    eval($CONTENTS_TO_ANALYZE);
+} catch (Throwable $e) {
+    fwrite(STDERR, "Caught " . $e);
+}
+    </textarea>
+</body>
+</html>
