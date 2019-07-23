@@ -6,7 +6,7 @@ editor.setTheme("ace/theme/github");
 editor.session.setMode("ace/mode/php");
 editor.setShowPrintMargin(false);
 
-var default_code = "<"+"?php\n\nphpinfo();\n"
+var default_code = "<?php\n" + document.getElementById('features_example').innerText;
 
 var query = new URLSearchParams(document.location.search);
 if (query.has('code')) {
