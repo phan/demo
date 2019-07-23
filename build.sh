@@ -23,6 +23,7 @@ fi
 # We want to use Zend's allocator so that php's fast shutdown works, to avoid other issues.
 echo "Apply mmap workaround patch"
 cp zend_alloc.c $PHP_PATH/Zend/
+cp main.c $PHP_PATH/main/
 
 echo "Get Phan phar"
 

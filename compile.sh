@@ -10,6 +10,7 @@ cp ../$PHAN_PATH .
 php $PHAN_PATH --version || exit 1
 # Ensure the allocator patches are applied.
 cp ../zend_alloc.c Zend/
+cp ../main.c main/
 
 set -xeu
 mkdir -p out
