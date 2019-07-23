@@ -33,6 +33,7 @@
     <a href="https://github.com/TysonAndre/phan-demo"><img style="z-index: 1;position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
     <script type="text/javascript" src="php.js"></script>
     <script type="text/javascript" src="static/demo.js"></script>
+<!-- TODO: move this into a generated JS file -->
     <textarea style="display:none;" id="phan_runner_source">
 
 use Phan\Config;
@@ -45,7 +46,6 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 use Phan\CLI;
 use Phan\Phan;
-use Phan\Config;
 error_reporting(E_ALL);
 ini_set('display_errors', 'stderr');
 
@@ -79,6 +79,22 @@ $is_issue_found = Phan::analyzeFileList(
 );
 } catch (\Throwable $e) {
     echo "Caught $e\n";
+}
+    </textarea>
+    <textarea style="display:none;" id="eval_wrapper_source">
+function demo_error_handler(int $errno, string $errstr, string $errfile, int $errline) : bool {
+    fwrite(STDERR, "$errfile:$errline [$errno] $errstr\n");
+    ob_start();
+    debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+    fwrite(STDERR, ob_get_clean());
+    return false;
+}
+try {
+    error_reporting(E_ALL);
+    ini_set("display_errors", "stderr");
+    eval($CONTENTS_TO_ANALYZE);
+} catch (Throwable $e) {
+    fwrite(STDERR, "Caught " . $e);
 }
     </textarea>
 </body>
