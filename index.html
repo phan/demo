@@ -51,6 +51,7 @@
             border: 1px solid #bbb;
             border-right: none;
             overflow-y: auto;
+            white-space: pre-wrap;
         }
 
         #editor {
@@ -104,98 +105,7 @@
     </div>
     <a href="https://github.com/TysonAndre/phan-demo"><img style="z-index: 1;position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
     <script type="text/javascript" src="php.js"></script>
-    <script type='text/javascript'>
-        var editor = ace.edit("editor");
-        editor.setTheme("ace/theme/github");
-        editor.session.setMode("ace/mode/php");
-        editor.setShowPrintMargin(false);
-
-        var default_code = "<"+"?php\n\nphpinfo();\n"
-
-        var query = new URLSearchParams(document.location.search);
-        if (query.has('code')) {
-            editor.setValue(decodeURIComponent(query.get('code')));
-        } else {
-            editor.setValue(default_code);
-        }
-
-        var input_area = document.getElementById('input');
-        var run_button = document.getElementById('run');
-        var analyze_button = document.getElementById('analyze');
-        var output_area = document.getElementById('output');
-
-        var phpModule;
-
-        function doRun(code) {
-            code = code + "\necho PHP_EOL;" // flush line buffer
-            console.log('evaluating code', code);
-            let ret = phpModule.ccall('pib_eval', 'number', ["string"], [code])
-            console.log('done evaluating code', ret);
-            if (ret != 0) {
-                output_area.innerText += "Error, please check your code";
-            }
-        }
-
-        function init() {
-            // TODO: Change this to a monospace element without HTML
-            output_area.innerText = "Click ANALYZE";
-
-            run_button.disabled = false
-            analyze_button.disabled = false
-            run_button.textContent = "Run"
-            analyze_button.textContent = "Analyze"
-
-            run_button.addEventListener('click', function () {
-                output_area.innerText = '';
-                var code = editor.getValue();
-                var query = new URLSearchParams();
-                if (code.length < 1024) {
-                    query.append('code', encodeURIComponent(code));
-                    history.replaceState({}, document.title, "?" + query.toString());
-                }
-                code = "?>" + code;
-                doRun(code);
-            });
-            analyze_button.addEventListener('click', function () {
-                output_area.innerText = '';
-                var code = editor.getValue();
-                var query = new URLSearchParams();
-                if (code.length < 1024) {
-                    query.append('code', encodeURIComponent(code));
-                    history.replaceState({}, document.title, "?" + query.toString());
-                }
-                var analysisWrapper = document.getElementById('phan_runner_source').innerText;
-                // single quotes aren't escaped by encodeURIComponent, but double quotes are.
-                // Other problematic characters are escaped, and this preserves UTF-8.
-                var contentsFragment = 'rawurldecode("' + encodeURIComponent(code) + '")';
-                var analysisCode = analysisWrapper.replace('$CONTENTS_TO_ANALYZE', contentsFragment);
-                console.log(analysisCode);
-
-                doRun(analysisCode);
-            });
-        }
-
-        var phpModuleOptions = {
-            postRun: [init],
-            print: function (text) {
-                console.log('print', arguments);
-
-                if (arguments.length > 1) {
-                    text = Array.prototype.slice.call(arguments).join(' ');
-                }
-                output_area.innerText += text + "\n";
-            },
-            printErr: function (text) {
-                console.log('printErr', arguments);
-
-                if (arguments.length > 1) {
-                    text = Array.prototype.slice.call(arguments).join(' ');
-                }
-                output_area.innerText += text + "\n";
-            }
-        };
-        phpModule = PHP(phpModuleOptions);
-    </script>
+    <script type="text/javascript" src="demo.js"></script>
     <textarea style="display:none;" id="phan_runner_source">
 use Phan\CLI;
 use Phan\Phan;
@@ -204,27 +114,11 @@ error_reporting(E_ALL);
 ini_set('display_errors', 'stderr');
 
 try {
-    // var_export($_SERVER['argv'] = ['-a', '-b']);
-    // var_export(getopt('ab'));
-    //require 'phar://phan-2.2.6.phar';
-
     $phar = 'phar://phan-2.2.6.phar';
+    gc_disable();
+    $data = require($phar . '/src/Phan/Language/Internal/ClassDocumentationMap.php');
+    require_once($phar . '/src/requirements.php');
 
-
-// Phan does a ton of GC and this offers a major speed
-// improvement if your system can handle it (which it
-// should be able to)
-gc_disable();
-// echo "Successfully disabled gc\n";
-
-// Check the environment to make sure Phan can run successfully
-$data = require($phar . '/src/Phan/Language/Internal/ClassDocumentationMap.php');
-// echo "Successfully loaded an array from the phar\n";
-require_once($phar . '/src/requirements.php');
-
-// Build a code base based on PHP internally defined
-// functions, methods and classes before loading our
-// own
 $code_base = require_once($phar . '/src/codebase.php');
 
 require_once($phar . '/src/Phan/Bootstrap.php');
@@ -235,8 +129,6 @@ if (!is_dir('/Zend')) {
 file_put_contents('/Zend/fail.php', $CONTENTS_TO_ANALYZE);
 Config::setValue('directory_list', ['/Zend']);
 
-// Create our CLI interface and load arguments
-// TODO: provide an array
 $cli = CLI::fromRawValues(['allow-polyfill-parser' => false], []);
 
 // Analyze the file list provided via the CLI
@@ -245,17 +137,9 @@ $is_issue_found =
     Phan::analyzeFileList(
         $code_base,
         function (bool $recompute_file_list = false) use ($cli) : array {
-            if ($recompute_file_list) {
-                $cli->recomputeFileList();
-            }
             return $cli->getFileList();
-        }  // Daemon mode will reload the file list.
+        }
     );
-
-// Provide an exit status code based on if
-// issues were found
-// echo "Phan analysis completed: is_issue_found = " . json_encode($is_issue_found) . "\n";
-
 } catch (\Throwable $e) {
     echo "Caught $e\n";
 }

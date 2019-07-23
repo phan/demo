@@ -66,14 +66,15 @@ static void pib_report_exception(zend_object *ex) {
     // zend_exception_error(ex, E_ERROR);
     if (ce_exception) {
         zval rv;
-        fprintf(stderr, "Uncaught throwable '%s'\n", ZSTR_VAL(ce_exception->name));
+		zend_string *message = zval_get_string(GET_PROPERTY_SILENT(&exception, ZEND_STR_MESSAGE));
+        fprintf(stderr, "Uncaught throwable '%s': %s\n", ZSTR_VAL(ce_exception->name), ZSTR_VAL(message));
 		zend_string *file = zval_get_string(GET_PROPERTY_SILENT(&exception, ZEND_STR_FILE));
 		zend_long line = zval_get_long(GET_PROPERTY_SILENT(&exception, ZEND_STR_LINE));
         fprintf(stderr, "At %s:%d\n", ZSTR_VAL(file), line);
         if (instanceof_function(ce_exception, zend_ce_throwable)) {
             zval tmp;
             // TODO handle uncaught exception caused by __toString()
-            zend_call_method_with_0_params(&exception, ce_exception, &ex->ce->__tostring, "__tostring", &tmp);
+            zend_call_method_with_0_params(&exception, ce_exception, &ce_exception->__tostring, "__tostring", &tmp);
             if (Z_TYPE(tmp) == IS_STRING) {
                 fprintf(stderr, "%s", Z_STRVAL(tmp));
             } else {
@@ -103,7 +104,9 @@ int EMSCRIPTEN_KEEPALIVE pib_eval(char *code) {
 		printf("In zend_catch\n");
         zend_object *ex = EG(exception);
         if (ex != NULL) {
+            EG(exception) = NULL;
             pib_report_exception(ex);
+            EG(exception) = ex;
         }
         ret = EG(exit_status);
     } zend_end_try();
