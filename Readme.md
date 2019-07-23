@@ -1,12 +1,12 @@
-# Phan in Browser (WIP)
+# Phan in Browser
 
 This is based on [oraoto/pib](https://oraoto.github.io/pib/)
 
-TODO: Set up a demo.
+[Run Phan in your browser](https://tysonandre.github.io/phan-demo/) (Requires Firefox and at least 4GB of free RAM)].
+
+- This uses emscripten to allow running both Phan and regular PHP scripts entirely in your browser.
 
 PHP Version: 7.3.7
-
-Firefox is recommended for a better user experience.
 
 ## Examples
 
@@ -33,7 +33,7 @@ Steps:
 
 ## Known issues
 
-+ Memory leak
++ Fatal errors (e.g. duplicate classes) do not get reported.
 
 ## Running locally
 

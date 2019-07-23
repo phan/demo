@@ -12,6 +12,7 @@
     <div class="playground">
         <div class="site-header">
             <h1>Phan in Browser</h1>
+            <em>(Best viewed in firefox)</em>
         </div>
         <div class="playground-header">
             <div class="editor-buttons">
@@ -111,7 +112,8 @@ function demo($param, $arg) : ?int {
         [],
         'extra'
     );
-    // Phan can detect redundant/impossible conditions and unused variables.
+    // Phan can detect redundant/impossible conditions
+    // and unused variables.
     $always_true = is_bool($cond);
     echo "Missing variable is $argv\n";
     return $arg;
@@ -119,7 +121,8 @@ function demo($param, $arg) : ?int {
 
 class MyClass {
     public function __construct(string $x = null) {
-        $this->x = $x;  // and detect undeclared properties, etc.
+        // and detect undeclared properties, etc.
+        $this->x = $x;
     }
 }
 demo(2, new SplObjectStorage());
