@@ -117,17 +117,17 @@ h1 {
     color: Red;
 }
 .phan_file, .phan_parameter, .phan_property, .phan_variable {
-    color: Cyan;
+    color: DarkCyan;
 }
 .phan_function, .phan_functionlike, .phan_method {
-    color: Orange;
+    color: DarkOrange;
 }
 .phan_issuetype {
-    color: LightBlue;
+    color: DarkOrange;
 }
 .phan_issuetype_normal {
     color: #e33;
 }
 .phan_line, .phan_suggestion, .phan_type {
-    color: DarkGray;
+    color: gray;
 }

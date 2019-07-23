@@ -103,7 +103,7 @@ function demo($param, $arg) : ?int {
     var_export(new my_class());
 
     $cond = $param > 5;
-    if (!($arg instanceof SplObjectStorage)) { return; }
+    if (!($arg instanceof SplObjectStorage)) { return $argc; }
     $arg->attach($cond);
     $arg->atach(new stdClass());
     $arg->attach(
@@ -122,6 +122,7 @@ class MyClass {
         $this->x = $x;  // and detect undeclared properties, etc.
     }
 }
+demo(2, new SplObjectStorage());
     </textarea>
     <script type="text/javascript" src="php.js"></script>
     <script type="text/javascript" src="static/demo.js"></script>
