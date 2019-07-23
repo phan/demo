@@ -47,3 +47,4 @@ Then, open http://localhost:8080/
 This application is based on [PHP in Browser (oraoto/pib)](https://github.com/oraoto/pib).
 
 The Web UI is based on [Rust Playground](https://play.rust-lang.org/).
+This uses the [ace](https://ace.c9.io/) editor.
