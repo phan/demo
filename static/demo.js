@@ -12,6 +12,7 @@ var query = new URLSearchParams(document.location.search);
 var run_button = document.getElementById('run');
 var analyze_button = document.getElementById('analyze');
 var output_area = document.getElementById('output');
+var isUsable = false;
 
 var initial_code = query.has('code') ? query.get('code') : '';
 if (query.has('code') && initial_code != default_code) {
@@ -45,7 +46,7 @@ function getOrDefault(value, defaultValue) {
 function doRun(code, outputIsHTML, defaultText) {
     output_area.innerHTML = '';
     code = code + "\necho PHP_EOL;" // flush line buffer
-    console.log('evaluating code', code);
+    console.log('evaluating code'); // , code);
     let invokePHP = function () {
         combinedOutput = '';
         combinedHTMLOutput = '';
@@ -63,8 +64,15 @@ function doRun(code, outputIsHTML, defaultText) {
         // Make sure the output area is rendered, then refresh the php runtime environment
         requestAnimationFrame(function () {
             setTimeout(function () {
-                phpModule = generateNewPHPModule();
-                enableButtons();
+                try {
+                    phpModule._pib_force_exit();
+                } catch (e) {
+                    // ExitStatus
+                }
+                phpModule = generateNewPHPModule(function () {
+                    isUsable = true;
+                    enableButtons();
+                });
             }, 0);
         });
     };
@@ -80,7 +88,6 @@ function doRunWithWrapper(analysisWrapper, code, outputIsHTML, defaultText) {
     // Other problematic characters are escaped, and this preserves UTF-8.
     var contentsFragment = 'rawurldecode("' + encodeURIComponent(code) + '")';
     var analysisCode = analysisWrapper.replace('$CONTENTS_TO_ANALYZE', contentsFragment);
-    console.log(analysisCode);
 
     doRun(analysisCode, outputIsHTML, defaultText);
 }
@@ -123,6 +130,11 @@ function init() {
     enableButtons();
 
     run_button.addEventListener('click', function () {
+        if (!isUsable) {
+            console.log('skipping due to already running');
+            return;
+        }
+        isUsable = false;
         output_area.innerText = '';
         run_button.textContent = "Running"
         disableButtons();
@@ -134,6 +146,11 @@ function init() {
         doRunWithWrapper(analysisWrapper, code, false, 'PHP code ran successfully with no output.');
     });
     analyze_button.addEventListener('click', function () {
+        if (!isUsable) {
+            console.log('skipping due to already running');
+            return;
+        }
+        isUsable = false;
         output_area.innerText = '';
         analyze_button.textContent = "Analyzing"
         disableButtons();
@@ -148,14 +165,14 @@ var sizeInBytes = 134217728;
 var WASM_PAGE_SIZE = 65536;
 var reusableWasmMemory;
 
-function generateNewPHPModule() {
+function generateNewPHPModule(callback) {
     fillReusableMemoryWithZeroes();
     reusableWasmMemory = reusableWasmMemory || new WebAssembly.Memory({
         initial: sizeInBytes / WASM_PAGE_SIZE,
         maximum: sizeInBytes / WASM_PAGE_SIZE,
     });
     var phpModuleOptions = {
-        postRun: [init],
+        postRun: [callback],
         print: function (text) {
             console.log('print', arguments);
 
@@ -195,4 +212,5 @@ var fillReusableMemoryWithZeroes = function() {
         arr.fill(0);
     }
 }
-phpModule = generateNewPHPModule();
+phpModule = generateNewPHPModule(init);
+isUsable = true;
