@@ -12,12 +12,14 @@ var query = new URLSearchParams(document.location.search);
 var run_button = document.getElementById('run');
 var analyze_button = document.getElementById('analyze');
 var output_area = document.getElementById('output');
+var isUsable = false;
 
 var initial_code = query.has('code') ? query.get('code') : '';
 if (query.has('code') && initial_code != default_code) {
     editor.setValue(initial_code);
 } else {
     editor.setValue(default_code);
+    // Pre-render the output of the demo to show the types of issues Phan is capable of detecting.
     output_area.innerHTML =
         '<p><span class="phan_file">input</span>:<span class="phan_line">2</span>: <span class="phan_issuetype_normal">PhanUnreferencedFunction</span> Possibly zero references to function <span class="phan_function">\\demo()</span></p>' +
         '<p><span class="phan_file">input</span>:<span class="phan_line">6</span>: <span class="phan_issuetype_critical">PhanUndeclaredClassMethod</span> Call to method <span class="phan_method">__construct</span> from undeclared class <span class="phan_class">\\my_class</span> (<span class="phan_suggestion">Did you mean class \\MyClass</span>)</p>' +
@@ -44,7 +46,7 @@ function getOrDefault(value, defaultValue) {
 function doRun(code, outputIsHTML, defaultText) {
     output_area.innerHTML = '';
     code = code + "\necho PHP_EOL;" // flush line buffer
-    console.log('evaluating code', code);
+    console.log('evaluating code'); // , code);
     let invokePHP = function () {
         combinedOutput = '';
         combinedHTMLOutput = '';
@@ -59,7 +61,20 @@ function doRun(code, outputIsHTML, defaultText) {
         } else {
             output_area.innerText = getOrDefault(combinedOutput, defaultText);
         }
-        enableButtons();
+        // Make sure the output area is rendered, then refresh the php runtime environment
+        requestAnimationFrame(function () {
+            setTimeout(function () {
+                try {
+                    phpModule._pib_force_exit();
+                } catch (e) {
+                    // ExitStatus
+                }
+                phpModule = generateNewPHPModule(function () {
+                    isUsable = true;
+                    enableButtons();
+                });
+            }, 0);
+        });
     };
     // This works around an issue seen in firefox where
     // the browser's appearance won't update because JS(emscripten) is still running.
@@ -73,7 +88,6 @@ function doRunWithWrapper(analysisWrapper, code, outputIsHTML, defaultText) {
     // Other problematic characters are escaped, and this preserves UTF-8.
     var contentsFragment = 'rawurldecode("' + encodeURIComponent(code) + '")';
     var analysisCode = analysisWrapper.replace('$CONTENTS_TO_ANALYZE', contentsFragment);
-    console.log(analysisCode);
 
     doRun(analysisCode, outputIsHTML, defaultText);
 }
@@ -107,12 +121,20 @@ function updateQueryParams(code) {
 }
 
 function init() {
+    if (didInit) {
+        return;
+    }
     didInit = true;
     // This is a monospace element without HTML.
     // output_area.innerText = "Click ANALYZE";
     enableButtons();
 
     run_button.addEventListener('click', function () {
+        if (!isUsable) {
+            console.log('skipping due to already running');
+            return;
+        }
+        isUsable = false;
         output_area.innerText = '';
         run_button.textContent = "Running"
         disableButtons();
@@ -124,6 +146,11 @@ function init() {
         doRunWithWrapper(analysisWrapper, code, false, 'PHP code ran successfully with no output.');
     });
     analyze_button.addEventListener('click', function () {
+        if (!isUsable) {
+            console.log('skipping due to already running');
+            return;
+        }
+        isUsable = false;
         output_area.innerText = '';
         analyze_button.textContent = "Analyzing"
         disableButtons();
@@ -134,35 +161,56 @@ function init() {
     });
 }
 
-var phpModuleOptions = {
-    postRun: [init],
-    print: function (text) {
-        console.log('print', arguments);
+var sizeInBytes = 134217728;
+var WASM_PAGE_SIZE = 65536;
+var reusableWasmMemory;
 
-        if (arguments.length > 1) {
-            text = Array.prototype.slice.call(arguments).join(' ');
-        }
-        if (text == '') {
-            return;
-        }
-        if (didInit) {
-            combinedOutput += text + "\n";
-            combinedHTMLOutput += text + "\n";
-        }
-    },
-    printErr: function (text) {
-        console.log('printErr', arguments);
+function generateNewPHPModule(callback) {
+    fillReusableMemoryWithZeroes();
+    reusableWasmMemory = reusableWasmMemory || new WebAssembly.Memory({
+        initial: sizeInBytes / WASM_PAGE_SIZE,
+        maximum: sizeInBytes / WASM_PAGE_SIZE,
+    });
+    var phpModuleOptions = {
+        postRun: [callback],
+        print: function (text) {
+            console.log('print', arguments);
 
-        if (arguments.length > 1) {
-            text = Array.prototype.slice.call(arguments).join(' ');
-        }
-        if (text == '') {
-            return;
-        }
-        if (didInit) {
-            combinedHTMLOutput += '<span class="stderr">' + text + "</span>\n";
-            combinedOutput += text + "\n";
-        }
+            if (arguments.length > 1) {
+                text = Array.prototype.slice.call(arguments).join(' ');
+            }
+            if (text == '') {
+                return;
+            }
+            if (didInit) {
+                combinedOutput += text + "\n";
+                combinedHTMLOutput += text + "\n";
+            }
+        },
+        printErr: function (text) {
+            console.log('printErr', arguments);
+
+            if (arguments.length > 1) {
+                text = Array.prototype.slice.call(arguments).join(' ');
+            }
+            if (text == '') {
+                return;
+            }
+            if (didInit) {
+                combinedHTMLOutput += '<span class="stderr">' + text + "</span>\n";
+                combinedOutput += text + "\n";
+            }
+        },
+        wasmMemory: reusableWasmMemory
+    };
+    return PHP(phpModuleOptions);
+}
+/** This fills the wasm memory with 0s, so that the next fresh program startup succeeds */
+var fillReusableMemoryWithZeroes = function() {
+    if (reusableWasmMemory) {
+        var arr = new Uint8Array(reusableWasmMemory.buffer);
+        arr.fill(0);
     }
-};
-phpModule = PHP(phpModuleOptions);
+}
+phpModule = generateNewPHPModule(init);
+isUsable = true;
