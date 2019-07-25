@@ -115,3 +115,8 @@ int EMSCRIPTEN_KEEPALIVE pib_eval(char *code) {
     php_embed_shutdown();
     return ret;
 }
+
+int EMSCRIPTEN_KEEPALIVE pib_force_exit() {
+    emscripten_force_exit(0);
+    return 0;
+}

@@ -14,14 +14,19 @@ cp ../main.c main/
 
 set -xeu
 mkdir -p out
+# NOTE: Adding debug symbols makes this take ~15GB of ram to load in a browser.
+# Opening this project compiled with `-g4` in firefox may cause system performance issues or swapping.
+# But this (plus assertions) can be useful for investigating crashes.
 #CFLAGS=-g4
-CFLAGS=-O3
+# Fast compilation
+#CFLAGS='-Os'
+# Fast runtime, slow compilation (pass with --llvm-lto for the final compilation)
+CFLAGS='-O3'
 emcc $CFLAGS -I . -I Zend -I main -I TSRM/ ../pib_eval.c -o pib_eval.o
-# TODO disable assertions
 emcc $CFLAGS \
   --llvm-lto 2 \
   -s ENVIRONMENT=web \
-  -s EXPORTED_FUNCTIONS='["_pib_eval", "_php_embed_init", "_zend_eval_string", "_php_embed_shutdown"]' \
+  -s EXPORTED_FUNCTIONS='["_pib_eval", "_php_embed_init", "_zend_eval_string", "_php_embed_shutdown", "_pib_force_exit"]' \
   -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall"]' \
   -s MODULARIZE=1 \
   -s EXPORT_NAME="'PHP'" \
