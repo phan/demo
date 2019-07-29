@@ -2,7 +2,8 @@
 
 [Run Phan in your browser](https://tysonandre.github.io/phan-demo/) (Requires Firefox and at least 4GB of free RAM)].
 
-[![Preview](static/preview.png)](https://tysonandre.github.io/phan-demo/)
+[![Preview of analyzing PHP](static/preview.png)](https://tysonandre.github.io/phan-demo/)
+[![Preview of running php](static/run.png)](https://tysonandre.github.io/phan-demo/)
 
 - This uses emscripten to allow analyzing (or running) PHP scripts entirely in your browser.
 
