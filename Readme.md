@@ -15,8 +15,6 @@ This is based on [oraoto/pib](https://oraoto.github.io/pib/) (PHP In Browser)
 ## Known issues
 
 + Fatal errors (e.g. duplicate classes) do not get reported.
-+ Parsing all of the emscripten code can require gigabytes of memory.
-+ Chrome shows the "Aw, Snap" page (e.g. when you stop using the tab)
 
 ## Building From Source
 
@@ -34,7 +32,7 @@ docker run --rm -v $(pwd):/src trzeci/emscripten:sdk-incoming-64bit bash build.s
 
 Steps:
 
-1. Setup emsdk (>= 1.38.11), see [Installation Instructions](https://github.com/juj/emsdk#installation-instructions)
+1. Setup emsdk (>= 1.39.1), see [Installation Instructions](https://github.com/juj/emsdk#installation-instructions)
 2. Run `bash build.sh`
 
 ## Running locally
