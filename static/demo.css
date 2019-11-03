@@ -113,7 +113,11 @@ h1 {
 .phan_code, .phan_count, .phan_index, .phan_scalar, .phan_string_literal {
     color: Magenta;
 }
-.phan_const, .phan_issuetype_critical, .phan_operator {
+.phan_const, .phan_operator {
+    color: Red;
+}
+.phan_issuetype_critical {
+    font-weight: bold;
     color: Red;
 }
 .phan_file, .phan_parameter, .phan_property, .phan_variable {
