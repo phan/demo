@@ -3,9 +3,10 @@
 # TODO: https://emscripten.org/docs/porting/Debugging.html
 set -xeu
 
-PHP_VERSION=7.3.7
+PHP_VERSION=7.4.0RC5
 PHP_PATH=php-$PHP_VERSION
-PHAN_VERSION=2.2.6
+AST_PATH=ast-1.0.3
+PHAN_VERSION=2.4.1
 PHAN_PATH=phan-$PHAN_VERSION.phar
 
 echo "Get PHP source"
@@ -14,9 +15,6 @@ if [ ! -d $PHP_PATH ]; then
         wget https://www.php.net/distributions/$PHP_PATH.tar.xz
     fi
     tar xf $PHP_PATH.tar.xz
-
-    echo "Apply patch"
-    patch -p0 -i mods.diff
 fi
 
 # Copy workaround for mmap not working: https://github.com/emscripten-core/emscripten/issues/5187
@@ -30,6 +28,14 @@ echo "Get Phan phar"
 if [ ! -e $PHAN_PATH ]; then
     wget https://github.com/phan/phan/releases/download/$PHAN_VERSION/phan.phar -O $PHAN_PATH
 fi
+if [ ! -d "$PHP_PATH/ext/ast"  ]; then
+    if [ ! -f "$AST_PATH.tgz" ]; then
+        wget https://pecl.php.net/get/$AST_PATH.tgz -O $AST_PATH.tgz
+    fi
+    tar zxf $AST_PATH.tgz
+    mv "$AST_PATH" "$PHP_PATH/ext/ast"
+fi
+
 # Check that the phar is not corrupt
 php $PHAN_PATH --version || exit 1
 
@@ -42,6 +48,9 @@ echo "Configure"
 # NOTE: If -g4 is used, then firefox can require a lot of memory to load the resulting file.
 export CFLAGS=-O3
 cd $PHP_PATH
+# Configure this with a minimal set of extensions, statically compiling the third-party ast library.
+# Run buildconf so that ast will a valid configure option
+./buildconf --force
 emconfigure ./configure \
   --disable-all \
   --disable-cgi \
@@ -69,7 +78,7 @@ echo "Build"
 emmake make clean
 emmake make -j5
 mkdir -p out
-emcc $CFLAGS -I . -I Zend -I main -I TSRM/ ../pib_eval.c -o pib_eval.o
+emcc $CFLAGS -I . -I Zend -I main -I TSRM/ ../pib_eval.c -c -o pib_eval.o
 # NOTE: If this crashes with code 16, ASSERTIONS=1 is useful
 emcc $CFLAGS \
   --llvm-lto 2 \
