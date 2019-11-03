@@ -25,7 +25,7 @@ TODO: would these instructions work for phan-demo?
 The quickest way to build PIB is by using Docker:
 
 ```
-docker run --rm -v $(pwd):/src trzeci/emscripten:sdk-incoming-64bit bash build.sh
+docker run --rm -v $(pwd):/src trzeci/emscripten:sdk-incoming-64bit bash -c `apt-get update && apt-get install -y autoconf; build.sh`
 ```
 
 ### Setup Emscripten SDK (emsdk) manually
@@ -33,7 +33,7 @@ docker run --rm -v $(pwd):/src trzeci/emscripten:sdk-incoming-64bit bash build.s
 Steps:
 
 1. Setup emsdk (>= 1.39.1), see [Installation Instructions](https://github.com/juj/emsdk#installation-instructions)
-2. Run `bash build.sh`
+2. Run `bash build.sh` (Install `autoconf` if needed)
 
 ## Running locally
 
