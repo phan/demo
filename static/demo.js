@@ -42,6 +42,12 @@ function getOrDefault(value, defaultValue) {
     return value !== '' ? value : defaultValue;
 }
 
+function htmlescape(text) {
+    var el = document.createElement('span');
+    el.innerText = text;
+    return el.innerHTML;
+}
+
 function doRun(code, outputIsHTML, defaultText) {
     output_area.innerHTML = '';
     code = code + "\necho PHP_EOL;" // flush line buffer
@@ -58,7 +64,7 @@ function doRun(code, outputIsHTML, defaultText) {
         if (outputIsHTML && ret == 0) {
             output_area.innerHTML = getOrDefault(combinedHTMLOutput.replace(/\n/g, ""), defaultText);
         } else {
-            output_area.innerText = getOrDefault(combinedOutput, defaultText);
+            output_area.innerHTML = getOrDefault(combinedOutput, defaultText);
         }
         // Make sure the output area is rendered, then refresh the php runtime environment
         requestAnimationFrame(function () {
@@ -189,7 +195,7 @@ function generateNewPHPModule(callback) {
                 return;
             }
             if (didInit) {
-                combinedOutput += text + "\n";
+                combinedOutput += htmlescape(text) + "\n";
                 combinedHTMLOutput += text + "\n";
             }
         },
@@ -204,7 +210,7 @@ function generateNewPHPModule(callback) {
             }
             if (didInit) {
                 combinedHTMLOutput += '<span class="stderr">' + text + "</span>\n";
-                combinedOutput += text + "\n";
+                combinedOutput += '<span class="stderr">' + htmlescape(text) + "</span>\n";
             }
         },
         wasmMemory: reusableWasmMemory
