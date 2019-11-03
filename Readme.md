@@ -1,6 +1,6 @@
 # Phan in Browser
 
-[Run Phan in your browser](https://phan.github.io/demo/) (Requires Firefox and at least 4GB of free RAM)].
+[Run Phan in your browser](https://phan.github.io/demo/) (Requires Firefox/Chrome and at least 4GB of free RAM)].
 
 [![Preview of analyzing PHP](static/preview.png)](https://phan.github.io/demo/)
 [![Preview of running php](static/run.png)](https://phan.github.io/demo/)
