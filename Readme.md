@@ -7,8 +7,8 @@
 
 - This uses emscripten to allow analyzing (or running) PHP scripts entirely in your browser.
 
-PHP Version: 7.3.7
-[Phan](https://github.com/phan/phan) Version: 2.2.7-dev
+PHP Version: 7.4.0RC5
+[Phan](https://github.com/phan/phan) Version: 2.4.1
 
 This is based on [oraoto/pib](https://oraoto.github.io/pib/) (PHP In Browser)
 
