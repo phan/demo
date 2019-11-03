@@ -1,20 +1,21 @@
 # Phan in Browser
 
-[Run Phan in your browser](https://tysonandre.github.io/phan-demo/) (Requires Firefox and at least 4GB of free RAM)].
+[Run Phan in your browser](https://phan.github.io/demo/) (Requires Firefox and at least 4GB of free RAM)].
 
-[![Preview of analyzing PHP](static/preview.png)](https://tysonandre.github.io/phan-demo/)
-[![Preview of running php](static/run.png)](https://tysonandre.github.io/phan-demo/)
+[![Preview of analyzing PHP](static/preview.png)](https://phan.github.io/demo/)
+[![Preview of running php](static/run.png)](https://phan.github.io/demo/)
 
 - This uses emscripten to allow analyzing (or running) PHP scripts entirely in your browser.
 
 PHP Version: 7.4.0RC5
+
 [Phan](https://github.com/phan/phan) Version: 2.4.1
 
 This is based on [oraoto/pib](https://oraoto.github.io/pib/) (PHP In Browser)
 
 ## Known issues
 
-+ Fatal errors (e.g. duplicate classes) do not get reported.
++ [Fatal errors (e.g. duplicate classes) do not get reported.](https://github.com/phan/demo/issues/3)
 
 ## Building From Source
 
