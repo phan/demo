@@ -67,6 +67,25 @@ require_once($phar . '/src/Phan/Bootstrap.php');
 
 file_put_contents('input', $CONTENTS_TO_ANALYZE);
 Config::setValue('file_list', ['input']);
+// These plugins are what you'd see with --init-level=2
+Config::setValue('plugins', [
+    'AlwaysReturnPlugin',
+    'DollarDollarPlugin',
+    'DuplicateArrayKeyPlugin',
+    'DuplicateExpressionPlugin',
+    'PregRegexCheckerPlugin',
+    'PrintfCheckerPlugin',
+    'SleepCheckerPlugin',
+    'UnreachableCodePlugin',
+    'UseReturnValuePlugin',
+    'EmptyStatementListPlugin',
+    'StrictComparisonPlugin',
+    'LoopVariableReusePlugin',
+]);
+// This is stricter, though.
+Config::setValue('plugin_config', [
+    'infer_pure_methods' => true,
+]);
 
 $cli = CLI::fromRawValues([
     'output-mode' => 'html',
