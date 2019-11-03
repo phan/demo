@@ -119,6 +119,7 @@ function demo_error_handler(int $errno, string $errstr, string $errfile, int $er
 try {
     error_reporting(E_ALL);
     ini_set("display_errors", "stderr");
+    set_error_handler('demo_error_handler');
     eval($CONTENTS_TO_ANALYZE);
 } catch (Throwable $e) {
     fwrite(STDERR, "Caught " . $e);

@@ -120,6 +120,9 @@ h1 {
     font-weight: bold;
     color: Red;
 }
+.stderr {
+    color: Red;
+}
 .phan_file, .phan_parameter, .phan_property, .phan_variable {
     color: DarkCyan;
 }
