@@ -172,6 +172,13 @@ function generateNewPHPModule(callback) {
     });
     var phpModuleOptions = {
         postRun: [callback],
+        onAbort: function(what) {
+            markButtonsAsUnusable();
+            var errorElement = document.createElement('p');
+            errorElement.setAttribute('class', 'phan_issuetype_critical');
+            errorElement.innerText = 'WebAssembly aborted: ' + what.toString();
+            output_area.appendChild(errorElement);
+        },
         print: function (text) {
             console.log('print', arguments);
 
@@ -212,12 +219,17 @@ function fillReusableMemoryWithZeroes() {
         arr.fill(0);
     }
 }
-if (!window.PHP) {
-    output_area.innerHTML = '<h1 class="phan_issuetype_critical">Failed to load php.js</h1>';
+function markButtonsAsUnusable() {
     run_button.innerText = "ERROR";
     run_button.removeAttribute('title');
     analyze_button.innerText = "ERROR";
     analyze_button.removeAttribute('title');
+    disableButtons();
+    isUsable = false;
+}
+if (!window.PHP) {
+    output_area.innerHTML = '<h1 class="phan_issuetype_critical">Failed to load php.js</h1>';
+    markButtonsAsUnusable();
 } else {
     /** This fills the wasm memory with 0s, so that the next fresh program startup succeeds */
     phpModule = generateNewPHPModule(init);
