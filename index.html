@@ -12,7 +12,7 @@
     <div class="playground">
         <div class="site-header">
             <h1>Phan in Browser</h1>
-            <em>(Uses <a href="https://github.com/phan/phan">Phan</a>. Best viewed in firefox)</em>
+            <em>(Uses <a href="https://github.com/phan/phan">Phan</a> 2.4.1 and PHP 7.4.0RC5. Best viewed in firefox)</em>
         </div>
         <div class="playground-header">
             <div class="editor-buttons">
@@ -49,7 +49,13 @@ error_reporting(E_ALL);
 ini_set('display_errors', 'stderr');
 
 try {
-    $phar = 'phar://phan-2.2.6.phar';
+    $phar_path = 'phan-2.4.1.phar';
+    if (!file_exists($phar_path)) {
+        fwrite(STDERR, "Could not load '$phar_path' - this may not have been included when generating this site with emscripten\n");
+        exit(1);
+    }
+
+    $phar = "phar://$phar_path";
     gc_disable();
     $data = require($phar . '/src/Phan/Language/Internal/ClassDocumentationMap.php');
     require_once($phar . '/src/requirements.php');
@@ -61,6 +67,25 @@ require_once($phar . '/src/Phan/Bootstrap.php');
 
 file_put_contents('input', $CONTENTS_TO_ANALYZE);
 Config::setValue('file_list', ['input']);
+// These plugins are what you'd see with --init-level=2
+Config::setValue('plugins', [
+    'AlwaysReturnPlugin',
+    'DollarDollarPlugin',
+    'DuplicateArrayKeyPlugin',
+    'DuplicateExpressionPlugin',
+    'PregRegexCheckerPlugin',
+    'PrintfCheckerPlugin',
+    'SleepCheckerPlugin',
+    'UnreachableCodePlugin',
+    'UseReturnValuePlugin',
+    'EmptyStatementListPlugin',
+    'StrictComparisonPlugin',
+    'LoopVariableReusePlugin',
+]);
+// This is stricter, though.
+Config::setValue('plugin_config', [
+    'infer_pure_methods' => true,
+]);
 
 $cli = CLI::fromRawValues([
     'output-mode' => 'html',
@@ -68,6 +93,7 @@ $cli = CLI::fromRawValues([
     'use-fallback-parser' => false,
     'redundant-condition-detection' => false,
     'dead-code-detection' => false,
+    'no-progress-bar' => false,
 ], []);
 
 // Analyze the file list provided via the CLI
