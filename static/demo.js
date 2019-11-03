@@ -204,12 +204,22 @@ function generateNewPHPModule(callback) {
     };
     return PHP(phpModuleOptions);
 }
+
 /** This fills the wasm memory with 0s, so that the next fresh program startup succeeds */
-var fillReusableMemoryWithZeroes = function() {
+function fillReusableMemoryWithZeroes() {
     if (reusableWasmMemory) {
         var arr = new Uint8Array(reusableWasmMemory.buffer);
         arr.fill(0);
     }
 }
-phpModule = generateNewPHPModule(init);
-isUsable = true;
+if (!window.PHP) {
+    output_area.innerHTML = '<h1 class="phan_issuetype_critical">Failed to load php.js</h1>';
+    run_button.innerText = "ERROR";
+    run_button.removeAttribute('title');
+    analyze_button.innerText = "ERROR";
+    analyze_button.removeAttribute('title');
+} else {
+    /** This fills the wasm memory with 0s, so that the next fresh program startup succeeds */
+    phpModule = generateNewPHPModule(init);
+    isUsable = true;
+}
