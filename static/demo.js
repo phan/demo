@@ -35,6 +35,7 @@ if (query.has('code') && initial_code != default_code) {
 }
 
 var phpModule;
+var phpModuleDidLoad = false;
 var combinedOutput = '';
 var combinedHTMLOutput = '';
 
@@ -48,6 +49,28 @@ function htmlescape(text) {
     return el.innerHTML;
 }
 
+/**
+ * This wraps generateNewPHPModule.
+ *
+ * It makes the buttons clickable immediately on subsequent runs,
+ * while silently waiting for php to become executable again.
+ */
+function lazyGenerateNewPHPModule(cb) {
+    cb = cb || function() {}
+    if (phpModuleDidLoad) {
+        cb();
+        return;
+    }
+    try {
+        phpModule = generateNewPHPModule(function () {
+            phpModuleDidLoad = true;
+            cb();
+        });
+    } catch (e) {
+        showWebAssemblyError("Unexpected error reloading php: " + e.toString())
+    }
+}
+
 function doRun(code, outputIsHTML, defaultText) {
     output_area.innerHTML = '';
     code = code + "\necho PHP_EOL;" // flush line buffer
@@ -55,6 +78,9 @@ function doRun(code, outputIsHTML, defaultText) {
     let invokePHP = function () {
         combinedOutput = '';
         combinedHTMLOutput = '';
+        lazyGenerateNewPHPModule(invokePHPInner);
+    }
+    let invokePHPInner = function () {
         let ret = phpModule.ccall('pib_eval', 'number', ["string"], [code])
         console.log('done evaluating code', ret);
         if (ret != 0) {
@@ -74,9 +100,15 @@ function doRun(code, outputIsHTML, defaultText) {
                 } catch (e) {
                     // ExitStatus
                 }
-                phpModule = generateNewPHPModule(function () {
-                    isUsable = true;
-                    enableButtons();
+                phpModule = null;
+                phpModuleDidLoad = false;
+                enableButtons();
+                isUsable = true;
+                console.log('buttons enabled');
+                requestAnimationFrame(function () {
+                    setTimeout(function () {
+                        console.log('render'); lazyGenerateNewPHPModule();
+                    }, 0);
                 });
             }, 0);
         });
@@ -123,6 +155,43 @@ function updateQueryParams(code) {
         query.append('code', code);
         history.replaceState({}, document.title, "?" + query.toString());
     }
+}
+
+// Based on emscripten generated source
+function fetchRemotePackage(packageName, callback) {
+    var xhr = new XMLHttpRequest;
+    xhr.open('GET', packageName, true);
+    xhr.responseType = 'arraybuffer';
+    xhr.onerror = function (event) {
+        console.log('NetworkError for: ' + packageName, event);
+        showWebAssemblyError('NetworkError for: ' + packageName);
+        throw new Error('NetworkError for: ' + packageName);
+    };
+    xhr.onload = function (/*event */) {
+        console.log('xhr loaded status=' + xhr.status);
+        if (xhr.status == 200 || xhr.status == 304 || xhr.status == 206 || xhr.status == 0 && xhr.response) {
+            var packageData = xhr.response;
+            callback(packageData)
+        } else {
+            showWebAssemblyError(xhr.statusText + ' : ' + xhr.responseURL);
+            throw new Error(xhr.statusText + ' : ' + xhr.responseURL)
+        }
+    };
+    xhr.send(null)
+}
+
+/* This can be reused - This avoids notices about HTTP 302s and using the streaming API in some browsers (firefox), but is counterproductive if other browsers (Chrome) would normally just use disk cache. */
+var phpWasmBinary = null;
+function loadPhpWasm(cb) {
+    console.log('called loadPhpWasm');
+    if (phpWasmBinary) {
+        cb(phpWasmBinary);
+        return;
+    }
+    fetchRemotePackage('php.wasm', function (data) {
+        phpWasmBinary = data;
+        cb(phpWasmBinary);
+    });
 }
 
 function init() {
@@ -194,7 +263,7 @@ function generateNewPHPModule(callback) {
             if (text == '') {
                 return;
             }
-            if (didInit) {
+            if (didInit && phpModuleDidLoad) {
                 combinedOutput += htmlescape(text) + "\n";
                 combinedHTMLOutput += text + "\n";
             }
@@ -208,11 +277,12 @@ function generateNewPHPModule(callback) {
             if (text == '') {
                 return;
             }
-            if (didInit) {
+            if (didInit && phpModuleDidLoad) {
                 combinedHTMLOutput += '<span class="stderr">' + text + "</span>\n";
                 combinedOutput += '<span class="stderr">' + htmlescape(text) + "</span>\n";
             }
         },
+        wasmBinary: phpWasmBinary,
         wasmMemory: reusableWasmMemory
     };
     return PHP(phpModuleOptions);
@@ -246,7 +316,10 @@ if (!window.WebAssembly) {
 } else if (!window.PHP) {
     showWebAssemblyError('Failed to load php.js.');
 } else {
-    /** This fills the wasm memory with 0s, so that the next fresh program startup succeeds */
-    phpModule = generateNewPHPModule(init);
-    isUsable = true;
+    loadPhpWasm(function () {
+        console.log('successfully downloaded php.wasm to reuse');
+        /** This fills the wasm memory with 0s, so that the next fresh program startup succeeds */
+        phpModule = generateNewPHPModule(init);
+        isUsable = true;
+    });
 }
