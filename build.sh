@@ -17,10 +17,7 @@ if [ ! -d $PHP_PATH ]; then
     tar xf $PHP_PATH.tar.xz
 fi
 
-# Copy workaround for mmap not working: https://github.com/emscripten-core/emscripten/issues/5187
-# We want to use Zend's allocator so that php's fast shutdown works, to avoid other issues.
-echo "Apply mmap workaround patch"
-cp zend_alloc.c $PHP_PATH/Zend/
+echo "Apply error handler patch"
 cp main.c $PHP_PATH/main/
 
 echo "Get Phan phar"
