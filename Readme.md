@@ -9,9 +9,11 @@
 
 PHP Version: 7.4.0RC5
 
-[Phan](https://github.com/phan/phan) Version: 2.4.1
+[Phan](https://github.com/phan/phan) Version: 2.4.3
 
 This is based on [oraoto/pib](https://oraoto.github.io/pib/) (PHP In Browser)
+
+There is also a [demo for PHP 8.0.0-dev](https://phan.github.io/demo/8/)
 
 ## Known issues
 
