@@ -3,9 +3,9 @@
 
 <head>
     <meta charset="utf-8">
-    <title>Phan in Browser</title>
+    <title>Phan in Browser (for php 8.0-dev)</title>
     <script src="//ajaxorg.github.io/ace-builds/src-min/ace.js" type="text/javascript" charset="utf-8"></script>
-    <link rel="stylesheet" type="text/css" href="static/demo.css" />
+    <link rel="stylesheet" type="text/css" href="../static/demo.css" />
     <link rel="shortcut icon" href="favicon.ico" />
 </head>
 
@@ -13,7 +13,7 @@
     <div class="playground">
         <div class="site-header">
             <h1>Phan in Browser</h1>
-            <em>(Uses <a href="https://github.com/phan/phan">Phan</a> 2.4.3 and PHP 7.4.0RC6. Best viewed in firefox/chrome)</em>
+            <em>(Uses <a href="https://github.com/phan/phan">Phan</a> 2.4.5-dev and PHP 8.0.0-dev (Built November 24, 2019). Best viewed in firefox/chrome)</em>
         </div>
         <div class="playground-header">
             <div class="editor-buttons">
@@ -48,9 +48,10 @@ use Phan\CLI;
 use Phan\Phan;
 error_reporting(E_ALL);
 ini_set('display_errors', 'stderr');
+putenv('NO_COLOR=1');
 
 try {
-    $phar_path = 'phan-2.4.3.phar';
+    $phar_path = 'phan-2.4.5-dev.phar';
     if (!file_exists($phar_path)) {
         fwrite(STDERR, "Could not load '$phar_path' - this may not have been included when generating this site with emscripten\n");
         exit(1);
@@ -126,6 +127,27 @@ try {
 }
     </textarea>
     <textarea style="display:none" id="features_example">
+// Phan can analyze PHP 8.0's union types.
+function testUnionTypes(int|string $value) : string|false {
+    if (is_int($value)) {
+        return $value * 2;
+    } elseif ($value) {
+        return "PREFIX: $value";
+    }
+    return null;
+}
+echo testUnionTypes(null);
+echo testUnionTypes(1);
+
+// PHP 8 will throw Errors in many cases instead of emitting a notice and returning false/null
+function checkedCount($arr) : int {
+    $n = count($arr);
+    if (!is_int($count)) {
+        throw new RuntimeException("No longer necessary in PHP 8");
+    }
+    return $n;
+}
+
 function demo($param, $arg) : ?int {
     // Phan can infer types, detect missing elements,
     // and detect incorrect calls.
@@ -155,7 +177,7 @@ class MyClass {
     }
 }
 demo(2, new SplObjectStorage());</textarea>
-    <script type="text/javascript" src="8_data/php.js"></script>
-    <script type="text/javascript" src="static/demo.js"></script>
+    <script type="text/javascript" src="php.js"></script>
+    <script type="text/javascript" src="../static/demo8.js"></script>
 </body>
 </html>
