@@ -48,6 +48,7 @@ use Phan\CLI;
 use Phan\Phan;
 error_reporting(E_ALL);
 ini_set('display_errors', 'stderr');
+putenv('NO_COLOR=1');
 
 try {
     $phar_path = 'phan-2.4.3.phar';
