@@ -3,10 +3,10 @@
 # TODO: https://emscripten.org/docs/porting/Debugging.html
 set -xeu
 
-PHP_VERSION=7.4.1
+PHP_VERSION=7.4.3
 PHP_PATH=php-$PHP_VERSION
-AST_PATH=ast-1.0.4
-PHAN_VERSION=2.4.5
+AST_PATH=ast-1.0.6
+PHAN_VERSION=2.6.1
 PHAN_PATH=phan-$PHAN_VERSION.phar
 
 if ! type emconfigure 2>/dev/null >/dev/null ; then
@@ -80,9 +80,11 @@ echo "Build"
 # -j5 seems to work for parallel builds
 emmake make clean
 emmake make -j5
+rm -rf out
 mkdir -p out
 emcc $CFLAGS -I . -I Zend -I main -I TSRM/ ../pib_eval.c -c -o pib_eval.o
 # NOTE: If this crashes with code 16, ASSERTIONS=1 is useful
+# EXPORT_NAME='PHP' became an error in https://github.com/emscripten-core/emscripten/commit/3043df918fa5a478431ae77a3fbd28841ac5661c
 emcc $CFLAGS \
   --llvm-lto 2 \
   -s ENVIRONMENT=web \
@@ -95,7 +97,7 @@ emcc $CFLAGS \
   -s INVOKE_RUN=0 \
   -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
   --preload-file $PHAN_PATH \
-  libs/libphp7.a pib_eval.o -o out/php.html
+  libs/libphp7.a pib_eval.o -o out/php.html || true
 
 cp out/php.wasm out/php.js out/php.data ..
 
