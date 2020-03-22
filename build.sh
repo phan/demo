@@ -84,7 +84,6 @@ rm -rf out
 mkdir -p out
 emcc $CFLAGS -I . -I Zend -I main -I TSRM/ ../pib_eval.c -c -o pib_eval.o
 # NOTE: If this crashes with code 16, ASSERTIONS=1 is useful
-# EXPORT_NAME='PHP' became an error in https://github.com/emscripten-core/emscripten/commit/3043df918fa5a478431ae77a3fbd28841ac5661c
 emcc $CFLAGS \
   --llvm-lto 2 \
   -s ENVIRONMENT=web \
@@ -97,7 +96,7 @@ emcc $CFLAGS \
   -s INVOKE_RUN=0 \
   -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
   --preload-file $PHAN_PATH \
-  libs/libphp7.a pib_eval.o -o out/php.html || true
+  libs/libphp7.a pib_eval.o -o out/php.js
 
 cp out/php.wasm out/php.js out/php.data ..
 

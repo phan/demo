@@ -4,8 +4,8 @@
 set -xeu
 
 PHP_PATH=php-src-master
-AST_PATH=ast-1.0.4
-PHAN_VERSION=2.4.5-dev
+AST_PATH=ast-1.0.6
+PHAN_VERSION=2.6.1
 PHAN_PATH=phan-$PHAN_VERSION.phar
 
 if ! type emconfigure 2>/dev/null >/dev/null ; then
@@ -20,7 +20,7 @@ if [ ! -d $PHP_PATH ]; then
 fi
 
 echo "Apply error handler patch"
-cp main.c $PHP_PATH/main/
+cp main8.c $PHP_PATH/main/main.c
 
 echo "Get Phan phar"
 
@@ -84,8 +84,10 @@ if false; then
             Zend/zend_ini_scanner.c \
             Zend/zend_ini_scanner_defs.h \
             Zend/zend_language_scanner.c \
+            Zend/zend_language_scanner.h \
+            Zend/zend_language_parser.h \
             Zend/zend_language_scanner_defs.h; do
-        cp path/to/php-src/$file $file
+        cp ~/programming/php-src/$file $file
     done
 fi
 
@@ -109,7 +111,7 @@ emcc $CFLAGS \
   -s INVOKE_RUN=0 \
   -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
   --preload-file $PHAN_PATH \
-  libs/libphp.a pib_eval.o -o out/php.html
+  libs/libphp.a pib_eval.o -o out/php.js
 
 cp out/php.wasm out/php.js out/php.data ../8
 

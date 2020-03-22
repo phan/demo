@@ -1,7 +1,5 @@
 /*
    +----------------------------------------------------------------------+
-   | PHP Version 7                                                        |
-   +----------------------------------------------------------------------+
    | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
@@ -594,11 +592,11 @@ PHPAPI void (*php_internal_encoding_changed)(void) = NULL;
  */
 static PHP_INI_MH(OnUpdateDefaultCharset)
 {
+	OnUpdateString(entry, new_value, mh_arg1, mh_arg2, mh_arg3, stage);
+	if (php_internal_encoding_changed) {
+		php_internal_encoding_changed();
+	}
 	if (new_value) {
-		OnUpdateString(entry, new_value, mh_arg1, mh_arg2, mh_arg3, stage);
-		if (php_internal_encoding_changed) {
-			php_internal_encoding_changed();
-		}
 #ifdef PHP_WIN32
 		php_win32_cp_do_update(ZSTR_VAL(new_value));
 #endif
@@ -611,11 +609,11 @@ static PHP_INI_MH(OnUpdateDefaultCharset)
  */
 static PHP_INI_MH(OnUpdateInternalEncoding)
 {
+	OnUpdateString(entry, new_value, mh_arg1, mh_arg2, mh_arg3, stage);
+	if (php_internal_encoding_changed) {
+		php_internal_encoding_changed();
+	}
 	if (new_value) {
-		OnUpdateString(entry, new_value, mh_arg1, mh_arg2, mh_arg3, stage);
-		if (php_internal_encoding_changed) {
-			php_internal_encoding_changed();
-		}
 #ifdef PHP_WIN32
 		php_win32_cp_do_update(ZSTR_VAL(new_value));
 #endif
@@ -628,11 +626,11 @@ static PHP_INI_MH(OnUpdateInternalEncoding)
  */
 static PHP_INI_MH(OnUpdateInputEncoding)
 {
+	OnUpdateString(entry, new_value, mh_arg1, mh_arg2, mh_arg3, stage);
+	if (php_internal_encoding_changed) {
+		php_internal_encoding_changed();
+	}
 	if (new_value) {
-		OnUpdateString(entry, new_value, mh_arg1, mh_arg2, mh_arg3, stage);
-		if (php_internal_encoding_changed) {
-			php_internal_encoding_changed();
-		}
 #ifdef PHP_WIN32
 		php_win32_cp_do_update(NULL);
 #endif
@@ -645,11 +643,11 @@ static PHP_INI_MH(OnUpdateInputEncoding)
  */
 static PHP_INI_MH(OnUpdateOutputEncoding)
 {
+	OnUpdateString(entry, new_value, mh_arg1, mh_arg2, mh_arg3, stage);
+	if (php_internal_encoding_changed) {
+		php_internal_encoding_changed();
+	}
 	if (new_value) {
-		OnUpdateString(entry, new_value, mh_arg1, mh_arg2, mh_arg3, stage);
-		if (php_internal_encoding_changed) {
-			php_internal_encoding_changed();
-		}
 #ifdef PHP_WIN32
 		php_win32_cp_do_update(NULL);
 #endif
@@ -1116,24 +1114,10 @@ PHPAPI ZEND_COLD void php_verror(const char *docref, const char *params, int typ
 		efree(docref_buf);
 	}
 
-	if (PG(track_errors) && module_initialized && EG(active) &&
-			(Z_TYPE(EG(user_error_handler)) == IS_UNDEF || !(EG(user_error_handler_error_reporting) & type))) {
-		zval tmp;
-		ZVAL_STRINGL(&tmp, buffer, buffer_len);
-		if (EG(current_execute_data)) {
-			if (zend_set_local_var_str("php_errormsg", sizeof("php_errormsg")-1, &tmp, 0) == FAILURE) {
-				zval_ptr_dtor(&tmp);
-			}
-		} else {
-			zend_hash_str_update_ind(&EG(symbol_table), "php_errormsg", sizeof("php_errormsg")-1, &tmp);
-		}
-	}
 	if (replace_buffer) {
 		zend_string_free(replace_buffer);
 	} else {
-		if (buffer_len > 0) {
-			efree(buffer);
-		}
+		efree(buffer);
 	}
 
 	php_error(type, "%s", message);
@@ -1206,10 +1190,11 @@ PHPAPI void php_html_puts(const char *str, size_t size)
 
 /* {{{ php_error_cb
  extended error handling function */
-static ZEND_COLD void php_error_cb(int type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args)
+static ZEND_COLD void php_error_cb(int orig_type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args)
 {
 	char *buffer;
 	int buffer_len, display;
+	int type = orig_type & E_ALL;
 
 	buffer_len = (int)vspprintf(&buffer, PG(log_errors_max_len), format, args);
 
@@ -1359,9 +1344,6 @@ static ZEND_COLD void php_error_cb(int type, const char *error_filename, const u
 				} else {
 					/* Write embed errors to stderr unconditionally */
                     fprintf(stderr, "%s: %s in %s on line %" PRIu32 "\n", error_type_str, buffer, error_filename, error_lineno);
-#ifdef PHP_WIN32
-                    fflush(stderr);
-#endif
 				}
 			}
 		}
@@ -1411,7 +1393,7 @@ static ZEND_COLD void php_error_cb(int type, const char *error_filename, const u
 					sapi_header_op(SAPI_HEADER_REPLACE, &ctr);
 				}
 				/* the parser would return 1 (failure), we can bail out nicely */
-				if (type != E_PARSE) {
+				if (!(orig_type & E_DONT_BAIL)) {
 					/* restore memory limit */
 					zend_set_memory_limit(PG(memory_limit));
 					efree(buffer);
@@ -1421,25 +1403,6 @@ static ZEND_COLD void php_error_cb(int type, const char *error_filename, const u
 				}
 			}
 			break;
-	}
-
-	/* Log if necessary */
-	if (!display) {
-		efree(buffer);
-		return;
-	}
-
-	if (PG(track_errors) && module_initialized && EG(active)) {
-		zval tmp;
-
-		ZVAL_STRINGL(&tmp, buffer, buffer_len);
-		if (EG(current_execute_data)) {
-			if (zend_set_local_var_str("php_errormsg", sizeof("php_errormsg")-1, &tmp, 0) == FAILURE) {
-				zval_ptr_dtor(&tmp);
-			}
-		} else {
-			zend_hash_str_update_ind(&EG(symbol_table), "php_errormsg", sizeof("php_errormsg")-1, &tmp);
-		}
 	}
 
 	efree(buffer);
@@ -1525,7 +1488,7 @@ PHP_FUNCTION(set_time_limit)
 	zend_string *key;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &new_timeout) == FAILURE) {
-		return;
+		RETURN_THROWS();
 	}
 
 	new_timeout_strlen = (int)zend_spprintf(&new_timeout_str, 0, ZEND_LONG_FMT, new_timeout);
@@ -2358,13 +2321,12 @@ int php_module_startup(sapi_module_struct *sf, zend_module_entry *additional_mod
 		struct {
 			const long error_level;
 			const char *phrase;
-			const char *directives[17]; /* Remember to change this if the number of directives change */
+			const char *directives[18]; /* Remember to change this if the number of directives change */
 		} directives[2] = {
 			{
 				E_DEPRECATED,
 				"Directive '%s' is deprecated",
 				{
-					"track_errors",
 					"allow_url_include",
 					NULL
 				}
@@ -2389,6 +2351,7 @@ int php_module_startup(sapi_module_struct *sf, zend_module_entry *additional_mod
 					"safe_mode_allowed_env_vars",
 					"safe_mode_protected_env_vars",
 					"zend.ze1_compatibility_mode",
+					"track_errors",
 					NULL
 				}
 			}
