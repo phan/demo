@@ -35,7 +35,7 @@ docker run --rm -v $(pwd):/src trzeci/emscripten:sdk-incoming-64bit bash -c `apt
 
 Steps:
 
-1. Setup emsdk (>= 1.39.1), see [Installation Instructions](https://github.com/juj/emsdk#installation-instructions)
+1. Setup emsdk (>= 1.39.1), see [Installation Instructions](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions)
 2. Run `bash build.sh` (Install `autoconf` if needed)
 
 ## Running locally
