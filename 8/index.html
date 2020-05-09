@@ -13,7 +13,7 @@
     <div class="playground">
         <div class="site-header">
             <h1>Phan in Browser</h1>
-            <em>(Uses <a href="https://github.com/phan/phan">Phan</a> 2.6.1 and PHP 8.0.0-dev (Built March 22, 2019). Best viewed in firefox/chrome)</em>
+            <em>(Uses <a href="https://github.com/phan/phan">Phan</a> 3.0.0 and PHP 8.0.0-dev (Built May 9, 2019). Best viewed in firefox/chrome)</em>
         </div>
         <div class="playground-header">
             <div class="editor-buttons">
@@ -51,7 +51,7 @@ ini_set('display_errors', 'stderr');
 putenv('NO_COLOR=1');
 
 try {
-    $phar_path = 'phan-2.6.1.phar';
+    $phar_path = 'phan-3.0.0.phar';
     if (!file_exists($phar_path)) {
         fwrite(STDERR, "Could not load '$phar_path' - this may not have been included when generating this site with emscripten\n");
         exit(1);
