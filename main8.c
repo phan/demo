@@ -1344,6 +1344,7 @@ static ZEND_COLD void php_error_cb(int orig_type, const char *error_filename, co
 				} else {
 					/* Write embed errors to stderr unconditionally */
                     fprintf(stderr, "%s: %s in %s on line %" PRIu32 "\n", error_type_str, buffer, error_filename, error_lineno);
+                    fflush(stderr);
 				}
 			}
 		}
