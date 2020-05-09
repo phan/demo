@@ -5,7 +5,7 @@ set -xeu
 
 PHP_PATH=php-src-master
 AST_PATH=ast-1.0.6
-PHAN_VERSION=2.6.1
+PHAN_VERSION=3.0.0
 PHAN_PATH=phan-$PHAN_VERSION.phar
 
 if ! type emconfigure 2>/dev/null >/dev/null ; then
