@@ -6,7 +6,7 @@ set -xeu
 PHP_VERSION=7.4.7
 PHP_PATH=php-$PHP_VERSION
 AST_PATH=ast-1.0.6
-PHAN_VERSION=3.0.3
+PHAN_VERSION=3.0.4
 PHAN_PATH=phan-$PHAN_VERSION.phar
 
 if ! type emconfigure 2>/dev/null >/dev/null ; then
