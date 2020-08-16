@@ -3,10 +3,10 @@
 # TODO: https://emscripten.org/docs/porting/Debugging.html
 set -xeu
 
-PHP_VERSION=7.4.7
+PHP_VERSION=7.4.9
 PHP_PATH=php-$PHP_VERSION
-AST_PATH=ast-1.0.6
-PHAN_VERSION=3.0.4
+AST_PATH=ast-1.0.8
+PHAN_VERSION=3.1.1
 PHAN_PATH=phan-$PHAN_VERSION.phar
 
 if ! type emconfigure 2>/dev/null >/dev/null ; then
