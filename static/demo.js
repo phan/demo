@@ -22,14 +22,15 @@ if (query.has('code') && initial_code != default_code) {
     // Pre-render the output of the demo to show the types of issues Phan is capable of detecting.
     output_area.innerHTML =
         '<p><span class="phan_file">input</span>:<span class="phan_line">6</span>: <span class="phan_issuetype_critical">PhanUndeclaredClassMethod</span> Call to method <span class="phan_method">__construct</span> from undeclared class <span class="phan_class">\\my_class</span> (<span class="phan_suggestion">Did you mean class \\MyClass</span>)</p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">10</span>: <span class="phan_issuetype_normal">PhanTypeMismatchArgumentInternalProbablyReal</span> Argument <span class="phan_index">1</span> (<span class="phan_parameter">$obj</span>) is <span class="phan_type">bool</span><span class="phan_details"></span> but <span class="phan_functionlike">\\SplObjectStorage::attach()</span> takes <span class="phan_type">object</span><span class="phan_details"></span></p>' +
+        '<p><span class="phan_file">input</span>:<span class="phan_line">10</span>: <span class="phan_issuetype_normal">PhanTypeMismatchArgumentInternalProbablyReal</span> Argument <span class="phan_index">1</span> (<span class="phan_parameter">$object</span>) is <span class="phan_code">$cond</span> of type <span class="phan_type">bool</span><span class="phan_details"></span> but <span class="phan_functionlike">\\SplObjectStorage::attach()</span> takes <span class="phan_type">object</span><span class="phan_details"></span></p>' +
         '<p><span class="phan_file">input</span>:<span class="phan_line">11</span>: <span class="phan_issuetype_critical">PhanUndeclaredMethod</span> Call to undeclared method <span class="phan_method">\\SplObjectStorage::atach</span> (<span class="phan_suggestion">Did you mean expr-&gt;attach()</span>)</p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">12</span>: <span class="phan_issuetype">PhanParamTooManyInternal</span> Call with <span class="phan_count">3</span> arg(s) to <span class="phan_functionlike">\\SplObjectStorage::attach(object $obj, $inf = default)</span> which only takes <span class="phan_count">2</span> arg(s)</p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">13</span>: <span class="phan_issuetype_critical">PhanTypeMismatchArgument</span> Argument <span class="phan_index">1</span> (<span class="phan_parameter">$x</span>) is <span class="phan_type">int</span> but <span class="phan_functionlike">\\MyClass::__construct()</span> takes <span class="phan_type">?string</span> defined at <span class="phan_file">input</span>:<span class="phan_line">25</span></p>' +
+        '<p><span class="phan_file">input</span>:<span class="phan_line">12</span>: <span class="phan_issuetype_critical">PhanParamTooManyInternal</span> Call with <span class="phan_count">3</span> arg(s) to <span class="phan_functionlike">\\SplObjectStorage::attach(object $object, $inf = unknown)</span> which only takes <span class="phan_count">2</span> arg(s). This is an ArgumentCountError for internal functions in PHP 8.0+.</p>' +
+        '<p><span class="phan_file">input</span>:<span class="phan_line">13</span>: <span class="phan_issuetype_normal">PhanTypeMismatchArgument</span> Argument <span class="phan_index">1</span> (<span class="phan_parameter">$x</span>) is <span class="phan_code">$argc</span> of type <span class="phan_type">int</span> but <span class="phan_functionlike">\\MyClass::__construct()</span> takes <span class="phan_type">?string</span> defined at <span class="phan_file">input</span>:<span class="phan_line">25</span></p>' +
         '<p><span class="phan_file">input</span>:<span class="phan_line">19</span>: <span class="phan_issuetype">PhanRedundantCondition</span> Redundant attempt to cast <span class="phan_code">$cond</span> of type <span class="phan_type">bool</span> to <span class="phan_type">bool</span></p>' +
         '<p><span class="phan_file">input</span>:<span class="phan_line">19</span>: <span class="phan_issuetype_normal">PhanUnusedVariable</span> Unused definition of variable <span class="phan_variable">$always_true</span></p>' +
+        '<p><span class="phan_file">input</span>:<span class="phan_line">20</span>: <span class="phan_issuetype_normal">PhanTypeSuspiciousStringExpression</span> Suspicious type <span class="phan_type">null=</span> of a variable or expression <span class="phan_code">$argv</span> used to build a string. (Expected type to be able to cast to a string)</p>' +
         '<p><span class="phan_file">input</span>:<span class="phan_line">20</span>: <span class="phan_issuetype_normal">PhanUndeclaredVariable</span> Variable <span class="phan_variable">$argv</span> is undeclared (<span class="phan_suggestion">Did you mean $arg or $argc or (global $argv)</span>)</p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">21</span>: <span class="phan_issuetype_critical">PhanTypeMismatchReturnReal</span> Returning type <span class="phan_type">\\SplObjectStorage</span><span class="phan_details"></span> but <span class="phan_functionlike">demo()</span> is declared to return <span class="phan_type">?int</span><span class="phan_details"></span></p>' +
+        '<p><span class="phan_file">input</span>:<span class="phan_line">21</span>: <span class="phan_issuetype_critical">PhanTypeMismatchReturnReal</span> Returning <span class="phan_code">$arg</span> of type <span class="phan_type">\\SplObjectStorage</span><span class="phan_details"></span> but <span class="phan_functionlike">demo()</span> is declared to return <span class="phan_type">?int</span><span class="phan_details"></span></p>' +
         '<p><span class="phan_file">input</span>:<span class="phan_line">27</span>: <span class="phan_issuetype_normal">PhanUndeclaredProperty</span> Reference to undeclared property <span class="phan_property">\\MyClass-&gt;x</span></p>';
 }
 
@@ -53,6 +54,8 @@ function htmlescape(text) {
  *
  * It makes the buttons clickable immediately on subsequent runs,
  * while silently waiting for php to become executable again.
+ *
+ * @returns {Promise<PHP>}
  */
 function lazyGenerateNewPHPModule(cb) {
     cb = cb || function() {}
@@ -61,9 +64,12 @@ function lazyGenerateNewPHPModule(cb) {
         return;
     }
     try {
-        phpModule = generateNewPHPModule(function () {
+        generateNewPHPModule().then(function (newPHPModule) {
             phpModuleDidLoad = true;
+            phpModule = newPHPModule;
             cb();
+        }).catch(function(e) {
+            showWebAssemblyError("Unexpected error reloading php: " + e.toString())
         });
     } catch (e) {
         showWebAssemblyError("Unexpected error reloading php: " + e.toString())
@@ -78,7 +84,7 @@ function doRun(code, outputIsHTML, defaultText) {
         combinedOutput = '';
         combinedHTMLOutput = '';
         lazyGenerateNewPHPModule(invokePHPInner);
-    }
+    };
     let invokePHPInner = function () {
         let ret = phpModule.ccall('pib_eval', 'number', ["string"], [code])
         console.log('done evaluating code', ret);
@@ -238,14 +244,18 @@ var sizeInBytes = 134217728;
 var WASM_PAGE_SIZE = 65536;
 var reusableWasmMemory;
 
-function generateNewPHPModule(callback) {
+/**
+ * @param {Function} callback callback to call after the script runs
+ * @returns {Promise<PHP>} the new php module
+ */
+function generateNewPHPModule() {
     fillReusableMemoryWithZeroes();
     reusableWasmMemory = reusableWasmMemory || new WebAssembly.Memory({
         initial: sizeInBytes / WASM_PAGE_SIZE,
         maximum: sizeInBytes / WASM_PAGE_SIZE,
     });
     var phpModuleOptions = {
-        postRun: [callback],
+        // postRun: [callback],
         onAbort: function(what) {
             markButtonsAsUnusable();
             var errorElement = document.createElement('p');
@@ -284,7 +294,14 @@ function generateNewPHPModule(callback) {
         wasmBinary: phpWasmBinary,
         wasmMemory: reusableWasmMemory
     };
-    return PHP(phpModuleOptions);
+    console.log('creating PHP module');
+    return PHP(phpModuleOptions).then(function (newPHPModule) {
+        console.log('created PHP module', newPHPModule);
+        return newPHPModule;
+    }).catch(function (error) {
+        showWebAssemblyError('Failed to initialize WebAssembly module: ' + error.message);
+        throw error;
+    });
 }
 
 /** This fills the wasm memory with 0s, so that the next fresh program startup succeeds */
@@ -315,10 +332,17 @@ if (!window.WebAssembly) {
 } else if (!window.PHP) {
     showWebAssemblyError('Failed to load php.js.');
 } else {
+    console.log('downloading php.wasm');
     loadPhpWasm(function () {
         console.log('successfully downloaded php.wasm to reuse');
         /** This fills the wasm memory with 0s, so that the next fresh program startup succeeds */
-        phpModule = generateNewPHPModule(init);
-        isUsable = true;
+        generateNewPHPModule().then(function (newPHPModule) {
+            console.log('successfully initialized php module');
+            phpModule = newPHPModule
+            isUsable = true;
+            init();
+        }).catch(function (error) {
+            showWebAssemblyError('Failed to initialize WebAssembly module: ' + error.message);
+        });
     });
 }

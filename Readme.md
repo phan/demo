@@ -7,23 +7,19 @@
 
 - This uses emscripten to allow analyzing (or running) PHP scripts entirely in your browser.
 
-PHP Version: 7.4.0RC5
+PHP Version: 7.4.10
 
-[Phan](https://github.com/phan/phan) Version: 2.4.3
+[Phan](https://github.com/phan/phan) Version: 3.2.1
 
 This is based on [oraoto/pib](https://oraoto.github.io/pib/) (PHP In Browser)
 
 There is also a [demo for PHP 8.0.0-dev](https://phan.github.io/demo/8/)
 
-## Known issues
-
-+ [Fatal errors (e.g. duplicate classes) do not get reported.](https://github.com/phan/demo/issues/3)
-
 ## Building From Source
 
 ### Using Docker
 
-TODO: would these instructions work for phan-demo?
+TODO: would these instructions work for phan/demo?
 
 The quickest way to build PIB is by using Docker:
 
@@ -35,7 +31,7 @@ docker run --rm -v $(pwd):/src trzeci/emscripten:sdk-incoming-64bit bash -c `apt
 
 Steps:
 
-1. Setup emsdk (>= 1.39.1), see [Installation Instructions](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions)
+1. Setup emsdk (>= 2.0.4), see [Installation Instructions](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions)
 2. Run `bash build.sh` (Install `autoconf` if needed)
 
 ## Running locally
