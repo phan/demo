@@ -5,8 +5,13 @@
 #include <stdlib.h>
 
 // From Zend/zend_exceptions.c for php 7.3
+#if PHP_MAJOR_VERSION >= 8
+#define GET_PROPERTY_SILENT(object, id) \
+	zend_read_property_ex(i_get_exception_base(object), (Z_OBJ_P(object)), ZSTR_KNOWN(id), 1, &rv)
+#else
 #define GET_PROPERTY_SILENT(object, id) \
 	zend_read_property_ex(i_get_exception_base(object), (object), ZSTR_KNOWN(id), 1, &rv)
+#endif
 
 // Source: php-src/sapi/php_cli.c
 static inline zend_class_entry *i_get_exception_base(zval *object) /* {{{ */
