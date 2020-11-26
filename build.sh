@@ -84,6 +84,7 @@ rm -rf out
 mkdir -p out
 emcc $CFLAGS -I . -I Zend -I main -I TSRM/ ../pib_eval.c -c -o pib_eval.o
 # NOTE: If this crashes with code 16, ASSERTIONS=1 is useful
+# -s IMPORTED_MEMORY=1 may help reduce memory in 3.0.10?
 emcc $CFLAGS \
   --llvm-lto 2 \
   -s ENVIRONMENT=web \
