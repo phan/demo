@@ -7,9 +7,9 @@
 
 - This uses emscripten to allow analyzing (or running) PHP scripts entirely in your browser.
 
-PHP Version: 7.4.10
+PHP Version: 7.4.13
 
-[Phan](https://github.com/phan/phan) Version: 3.2.1
+[Phan](https://github.com/phan/phan) Version: 3.2.5
 
 This is based on [oraoto/pib](https://oraoto.github.io/pib/) (PHP In Browser)
 
@@ -31,7 +31,7 @@ docker run --rm -v $(pwd):/src trzeci/emscripten:sdk-incoming-64bit bash -c `apt
 
 Steps:
 
-1. Setup emsdk (>= 2.0.4), see [Installation Instructions](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions)
+1. Setup emsdk (>= 3.0.9), see [Installation Instructions](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions)
 2. Run `bash build.sh` (Install `autoconf` if needed)
 
 ## Running locally

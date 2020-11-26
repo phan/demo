@@ -187,6 +187,7 @@ function fetchRemotePackage(packageName, callback) {
 
 /* This can be reused - This avoids notices about HTTP 302s and using the streaming API in some browsers (firefox), but is counterproductive if other browsers (Chrome) would normally just use disk cache. */
 var phpWasmBinary = null;
+var phpWasmData = null;
 function loadPhpWasm(cb) {
     console.log('called loadPhpWasm');
     if (phpWasmBinary) {
@@ -195,7 +196,10 @@ function loadPhpWasm(cb) {
     }
     fetchRemotePackage('php.wasm', function (data) {
         phpWasmBinary = data;
-        cb(phpWasmBinary);
+        fetchRemotePackage('php.data', function (data) {
+            phpWasmData = data;
+            cb(phpWasmBinary);
+        });
     });
 }
 
@@ -219,7 +223,6 @@ function init() {
         disableButtons();
         var code = editor.getValue();
         updateQueryParams(code);
-        // TODO: Figure out why we need an error handler for this to work.
         var analysisWrapper = document.getElementById('eval_wrapper_source').innerText;
         code = "?>" + code;
         doRunWithWrapper(analysisWrapper, code, false, 'PHP code ran successfully with no output.');
@@ -292,9 +295,15 @@ function generateNewPHPModule() {
             }
         },
         wasmBinary: phpWasmBinary,
-        wasmMemory: reusableWasmMemory
+        wasmMemory: reusableWasmMemory,
+        getPreloadedPackage: function(name) {
+          if (name === 'php.data') {
+            console.log('getPreloadedPackage returning php.data', phpWasmBinary);
+            return phpWasmData;
+          }
+        }
     };
-    console.log('creating PHP module');
+    console.log('creating PHP module fetchPreloadedPackage override');
     return PHP(phpModuleOptions).then(function (newPHPModule) {
         console.log('created PHP module', newPHPModule);
         return newPHPModule;
