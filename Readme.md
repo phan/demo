@@ -37,7 +37,7 @@ Steps:
 ## Running locally
 
 This requires that a web server be running and serve static files.
-`python 3 -m http.server --bind 127.0.0.1 8080` (from the root directory of phan-demo) is one way to do this.
+`python3 -m http.server --bind 127.0.0.1 8080` (from the root directory of phan-demo) is one way to do this.
 Then, open http://localhost:8080/
 
 ## Acknowledgements
