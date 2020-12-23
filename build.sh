@@ -3,17 +3,16 @@
 # TODO: https://emscripten.org/docs/porting/Debugging.html
 set -xeu
 
-PHP_VERSION=7.4.13
+PHP_VERSION=8.0.0
 PHP_PATH=php-$PHP_VERSION
 AST_PATH=ast-1.0.10
-PHAN_VERSION=3.2.5
+PHAN_VERSION=4.0.0-RC2
 PHAN_PATH=phan-$PHAN_VERSION.phar
 
 if ! type emconfigure 2>/dev/null >/dev/null ; then
     echo "emconfigure not found. Install emconfigure and add it to your path (e.g. source emsdk/emsdk_env.sh)"
     exit 1
 fi
-
 
 echo "Get PHP source"
 if [ ! -d $PHP_PATH ]; then
@@ -24,7 +23,7 @@ if [ ! -d $PHP_PATH ]; then
 fi
 
 echo "Apply error handler patch"
-cp main.c $PHP_PATH/main/
+cp main8.c $PHP_PATH/main/
 
 echo "Get Phan phar"
 
@@ -97,7 +96,7 @@ emcc $CFLAGS \
   -s INVOKE_RUN=0 \
   -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
   --preload-file $PHAN_PATH \
-  libs/libphp7.a pib_eval.o -o out/php.js
+  libs/libphp.a pib_eval.o -o out/php.js
 
 cp out/php.wasm out/php.js out/php.data ..
 
