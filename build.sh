@@ -5,8 +5,6 @@ set -xeu
 
 PHP_VERSION=8.1-enums
 PHP_PATH=php-$PHP_VERSION
-PHAN_VERSION=4.0.0
-PHAN_PATH=phan-$PHAN_VERSION.phar
 
 if ! type emconfigure 2>/dev/null >/dev/null ; then
     echo "emconfigure not found. Install emconfigure and add it to your path (e.g. source emsdk/emsdk_env.sh)"
@@ -15,22 +13,11 @@ fi
 
 echo "Get PHP source"
 if [ ! -d $PHP_PATH ]; then
-    git clone --branch enums --shallow git@github.com:iluuu1994/php-src.git $PHP_PATH
+    git clone --branch=enums --depth=1 git@github.com:iluuu1994/php-src.git $PHP_PATH
 fi
 
 echo "Apply error handler patch"
 cp main8.c $PHP_PATH/main/
-
-echo "Get Phan phar"
-
-if [ ! -e $PHAN_PATH ]; then
-    wget https://github.com/phan/phan/releases/download/$PHAN_VERSION/phan.phar -O $PHAN_PATH
-fi
-
-# Check that the phar is not corrupt
-php $PHAN_PATH --version || exit 1
-
-cp $PHAN_PATH $PHP_PATH/
 
 echo "Configure"
 
@@ -81,7 +68,6 @@ emcc $CFLAGS \
   -s ASSERTIONS=0 \
   -s INVOKE_RUN=0 \
   -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
-  --preload-file $PHAN_PATH \
   libs/libphp.a pib_eval.o -o out/php.js
 
 cp out/php.wasm out/php.js out/php.data ..
