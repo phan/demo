@@ -3,9 +3,8 @@
 # TODO: https://emscripten.org/docs/porting/Debugging.html
 set -xeu
 
-PHP_VERSION=8.0.0
+PHP_VERSION=8.1-enums
 PHP_PATH=php-$PHP_VERSION
-AST_PATH=ast-1.0.10
 PHAN_VERSION=4.0.0
 PHAN_PATH=phan-$PHAN_VERSION.phar
 
@@ -16,10 +15,7 @@ fi
 
 echo "Get PHP source"
 if [ ! -d $PHP_PATH ]; then
-    if [ ! -e $PHP_PATH.tar.xz ]; then
-        wget https://www.php.net/distributions/$PHP_PATH.tar.xz
-    fi
-    tar xf $PHP_PATH.tar.xz
+    git clone --branch enums --shallow git@github.com:iluuu1994/php-src.git $PHP_PATH
 fi
 
 echo "Apply error handler patch"
@@ -29,13 +25,6 @@ echo "Get Phan phar"
 
 if [ ! -e $PHAN_PATH ]; then
     wget https://github.com/phan/phan/releases/download/$PHAN_VERSION/phan.phar -O $PHAN_PATH
-fi
-if [ ! -d "$PHP_PATH/ext/ast"  ]; then
-    if [ ! -f "$AST_PATH.tgz" ]; then
-        wget https://pecl.php.net/get/$AST_PATH.tgz -O $AST_PATH.tgz
-    fi
-    tar zxf $AST_PATH.tgz
-    mv "$AST_PATH" "$PHP_PATH/ext/ast"
 fi
 
 # Check that the phar is not corrupt
@@ -50,8 +39,6 @@ echo "Configure"
 # NOTE: If -g4 is used, then firefox can require a lot of memory to load the resulting file.
 export CFLAGS=-O3
 cd $PHP_PATH
-# Configure this with a minimal set of extensions, statically compiling the third-party ast library.
-# Run buildconf so that ast will a valid configure option
 ./buildconf --force
 emconfigure ./configure \
   --disable-all \
@@ -64,7 +51,6 @@ emconfigure ./configure \
   --without-valgrind \
   --without-pcre-jit \
   --with-layout=GNU \
-  --enable-ast \
   --enable-bcmath \
   --enable-ctype \
   --enable-embed=static \
