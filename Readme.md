@@ -1,3 +1,9 @@
+# PHP RFC Demos
+
+This is a fork of [Phan in Browser](https://github.com/phan/demo) adapted to be a demo of PHP RFCs that can be run in your browser (with WebAssembly).
+
+The original documentation is below:
+
 # Phan in Browser
 
 [Run Phan in your browser](https://phan.github.io/demo/) (Requires Firefox/Chrome and at least 4GB of free RAM)].
