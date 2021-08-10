@@ -3,10 +3,10 @@
 # TODO: https://emscripten.org/docs/porting/Debugging.html
 set -xeu
 
-PHP_VERSION=8.0.6
+PHP_VERSION=8.0.9
 PHP_PATH=php-$PHP_VERSION
-AST_PATH=ast-1.0.12
-PHAN_VERSION=4.0.6
+AST_PATH=ast-1.0.14
+PHAN_VERSION=5.1.0
 PHAN_PATH=phan-$PHAN_VERSION.phar
 
 if ! type emconfigure 2>/dev/null >/dev/null ; then
@@ -17,13 +17,14 @@ fi
 echo "Get PHP source"
 if [ ! -d $PHP_PATH ]; then
     if [ ! -e $PHP_PATH.tar.xz ]; then
-        wget https://www.php.net/distributions/$PHP_PATH.tar.xz
+        #wget https://www.php.net/distributions/$PHP_PATH.tar.xz
+        wget https://downloads.php.net/~ramsey/$PHP_PATH.tar.xz
     fi
     tar xf $PHP_PATH.tar.xz
 fi
 
 echo "Apply error handler patch"
-cp main8.c $PHP_PATH/main/
+cp main.c $PHP_PATH/main/main.c
 
 echo "Get Phan phar"
 
@@ -73,6 +74,7 @@ emconfigure ./configure \
   --enable-phar \
   --enable-mbstring \
   --disable-mbregex \
+  --disable-fiber-asm \
   --enable-tokenizer
 
 echo "Build"
