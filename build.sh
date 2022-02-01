@@ -3,7 +3,7 @@
 # TODO: https://emscripten.org/docs/porting/Debugging.html
 set -xeu
 
-PHP_VERSION=8.1-enums
+PHP_VERSION=8.2-deque
 PHP_PATH=php-$PHP_VERSION
 
 if ! type emconfigure 2>/dev/null >/dev/null ; then
@@ -13,7 +13,7 @@ fi
 
 echo "Get PHP source"
 if [ ! -d $PHP_PATH ]; then
-    git clone --branch=enums --depth=1 git@github.com:iluuu1994/php-src.git $PHP_PATH
+    git clone --branch=deque --depth=1 git@github.com:TysonAndre/php-src.git $PHP_PATH
 fi
 
 echo "Apply error handler patch"
