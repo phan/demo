@@ -24,7 +24,8 @@ echo "Configure"
 # https://emscripten.org/docs/porting/Debugging.html
 # -g4 can be used to generate source maps for debugging C crashes
 # NOTE: If -g4 is used, then firefox can require a lot of memory to load the resulting file.
-export CFLAGS=-O3
+# Add ZEND_MM_ERROR=0 to stop emitting logs about munmap failing
+export CFLAGS='-O3 -DZEND_MM_ERROR=0'
 cd $PHP_PATH
 ./buildconf --force
 emconfigure ./configure \
