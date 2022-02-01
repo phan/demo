@@ -17,7 +17,7 @@ if [ ! -d $PHP_PATH ]; then
 fi
 
 echo "Apply error handler patch"
-cp main8.c $PHP_PATH/main/
+cp main8.c $PHP_PATH/main/main.c
 
 echo "Configure"
 
@@ -31,6 +31,7 @@ emconfigure ./configure \
   --disable-all \
   --disable-cgi \
   --disable-cli \
+  --disable-fiber-asm \
   --disable-rpath \
   --disable-phpdbg \
   --with-valgrind=no \
