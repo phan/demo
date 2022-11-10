@@ -3,7 +3,7 @@
 # TODO: https://emscripten.org/docs/porting/Debugging.html
 set -xeu
 
-PHP_VERSION=8.1.10
+PHP_VERSION=8.2.0RC5
 PHP_PATH=php-$PHP_VERSION
 AST_PATH=ast-1.1.0
 PHAN_VERSION=5.4.1
@@ -17,8 +17,8 @@ fi
 echo "Get PHP source"
 if [ ! -d $PHP_PATH ]; then
     if [ ! -e $PHP_PATH.tar.xz ]; then
-        wget https://www.php.net/distributions/$PHP_PATH.tar.xz
-        #wget https://downloads.php.net/~ramsey/$PHP_PATH.tar.xz
+        #wget https://www.php.net/distributions/$PHP_PATH.tar.xz
+        wget https://downloads.php.net/~pierrick/$PHP_PATH.tar.xz
     fi
     tar xf $PHP_PATH.tar.xz
 fi
