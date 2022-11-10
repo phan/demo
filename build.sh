@@ -17,7 +17,7 @@ if [ ! -d $PHP_PATH ]; then
 fi
 
 echo "Apply error handler patch"
-cp main8.c $PHP_PATH/main/main.c
+cp main.c $PHP_PATH/main/main.c
 
 echo "Configure"
 
