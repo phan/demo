@@ -72,6 +72,6 @@ emcc $CFLAGS \
   -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
   libs/libphp.a pib_eval.o -o out/php.js
 
-cp out/php.wasm out/php.js out/php.data ..
+cp out/php.wasm out/php.js ..
 
 echo "Done"
