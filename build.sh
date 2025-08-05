@@ -106,7 +106,7 @@ emcc $CFLAGS \
   --llvm-lto 2 \
   -s ENVIRONMENT=web \
   -s EXPORTED_FUNCTIONS='["_pib_eval", "_php_embed_init", "_zend_eval_string", "_php_embed_shutdown"]' \
-  -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall"]' \
+  -s EXPORTED_RUNTIME_METHODS='["ccall"]' \
   -s MODULARIZE=1 \
   -s EXPORT_NAME="'PHP'" \
   -s TOTAL_MEMORY=134217728 \
