@@ -4,8 +4,12 @@ php.data
 gh-pages
 
 
-php-7.*
+php-8.*
 *.phar
+ast-*
+package.xml
 
 .*.swp
 .*.swo
+
+
