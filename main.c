@@ -1408,8 +1408,8 @@ static ZEND_COLD void php_error_cb(int orig_type, zend_string *error_filename, c
 						php_printf_unchecked("%s<br />\n<b>%s</b>:  %S in <b>%s</b> on line <b>%" PRIu32 "</b><br />\n%s", STR_PRINT(prepend_string), error_type_str, message, ZSTR_VAL(error_filename), error_lineno, STR_PRINT(append_string));
 					}
 				} else {
-					/* Write CLI/CGI errors to stderr if display_errors = "stderr" */
-					if ((!strcmp(sapi_module.name, "cli") || !strcmp(sapi_module.name, "cgi") || !strcmp(sapi_module.name, "phpdbg")) &&
+					/* Write errors to stderr if display_errors = "stderr" regardless of sapi (Phan Demo patch for "embed" sapi) */
+					if (
 						PG(display_errors) == PHP_DISPLAY_ERRORS_STDERR
 					) {
 						fprintf(stderr, "%s: ", error_type_str);
