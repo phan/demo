@@ -3,7 +3,7 @@
 # TODO: https://emscripten.org/docs/porting/Debugging.html
 set -xeu
 
-PHP_VERSION=8.2.5
+PHP_VERSION=8.4.11
 PHP_PATH=php-$PHP_VERSION
 AST_PATH=ast-1.1.2
 PHAN_VERSION=5.5.1
