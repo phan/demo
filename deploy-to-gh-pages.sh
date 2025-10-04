@@ -68,7 +68,9 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     # Commit
     echo "Committing changes..."
-    git add index.html static/demo.js static/demo.css builds/ favicon.ico .gitignore
+    git add index.html static/demo.js static/demo.css favicon.ico .gitignore
+    # Force add builds/ since it's in .gitignore but we want it on gh-pages
+    git add -f builds/
 
     # Create commit message with version info
     COMMIT_MSG="Deploy multi-version support
