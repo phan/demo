@@ -230,6 +230,27 @@ h1 {
     color: #6c757d;
 }
 
+/* Highlighting for line number correlation */
+#output p {
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+#output p:hover {
+    background: #fff3cd !important;
+}
+
+#output p.highlighted {
+    background: #fff3cd !important;
+}
+
+/* Ace editor line highlight */
+.ace-highlight-line {
+    position: absolute;
+    background: rgba(255, 243, 205, 0.5);
+    z-index: 20;
+}
+
 /* Modal styles */
 .modal {
     display: none;

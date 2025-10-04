@@ -511,6 +511,89 @@ function init() {
         var analysisWrapper = document.getElementById('phan_runner_source').innerText;
         doRunWithWrapper(analysisWrapper, code, true, 'Phan did not detect any errors.');
     });
+
+    // Set up line number highlighting
+    setupLineHighlighting();
+}
+
+function setupLineHighlighting() {
+    var currentEditorHighlight = null;
+
+    // Parse line number from error message
+    function getLineNumberFromError(errorElement) {
+        var lineSpan = errorElement.querySelector('.phan_line');
+        if (lineSpan) {
+            var lineNum = parseInt(lineSpan.textContent);
+            if (!isNaN(lineNum)) {
+                return lineNum;
+            }
+        }
+        return null;
+    }
+
+    // Highlight editor line
+    function highlightEditorLine(lineNum) {
+        if (currentEditorHighlight) {
+            editor.session.removeMarker(currentEditorHighlight);
+        }
+        if (lineNum !== null) {
+            var Range = ace.require('ace/range').Range;
+            currentEditorHighlight = editor.session.addMarker(
+                new Range(lineNum - 1, 0, lineNum - 1, 1000),
+                'ace-highlight-line',
+                'fullLine'
+            );
+        }
+    }
+
+    // Add hover handlers to output errors
+    output_area.addEventListener('mouseover', function(e) {
+        var errorP = e.target.closest('p');
+        if (errorP && errorP.parentElement === output_area) {
+            var lineNum = getLineNumberFromError(errorP);
+            if (lineNum !== null) {
+                highlightEditorLine(lineNum);
+                errorP.classList.add('highlighted');
+            }
+        }
+    });
+
+    output_area.addEventListener('mouseout', function(e) {
+        var errorP = e.target.closest('p');
+        if (errorP && errorP.parentElement === output_area) {
+            highlightEditorLine(null);
+            errorP.classList.remove('highlighted');
+        }
+    });
+
+    // Add hover handler for editor gutters (line numbers)
+    editor.on('guttermousemove', function(e) {
+        var lineNum = e.getDocumentPosition().row + 1;
+
+        // Find and highlight matching errors
+        var errorPs = output_area.querySelectorAll('p');
+        errorPs.forEach(function(errorP) {
+            var errorLine = getLineNumberFromError(errorP);
+            if (errorLine === lineNum) {
+                errorP.classList.add('highlighted');
+                // Scroll error into view if not visible
+                if (errorP.offsetTop < output_area.scrollTop ||
+                    errorP.offsetTop > output_area.scrollTop + output_area.clientHeight) {
+                    errorP.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+                }
+            } else {
+                errorP.classList.remove('highlighted');
+            }
+        });
+    });
+
+    editor.on('guttermouseout', function() {
+        // Remove all error highlights
+        var errorPs = output_area.querySelectorAll('p');
+        errorPs.forEach(function(errorP) {
+            errorP.classList.remove('highlighted');
+        });
+    });
 }
 
 var sizeInBytes = 134217728;
