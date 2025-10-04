@@ -204,10 +204,9 @@ function getVersionPath() {
 }
 
 function updatePhanVersionInfo() {
-    var versionInfoDiv = document.getElementById('phan-version-info');
     var phanVersionSelect = document.getElementById('phan-version');
 
-    // Only show info for dev versions
+    // Only update dropdown for dev versions
     if (currentPhanVersion === 'v6-dev') {
         // Fetch the .info file for this version
         var infoUrl = 'phan-' + currentPhanVersion + '.phar.info';
@@ -221,11 +220,10 @@ function updatePhanVersionInfo() {
             })
             .then(function(text) {
                 if (text) {
-                    // Extract just the commit hash and date part
-                    var match = text.match(/commit ([a-f0-9]+) \(([^)]+)\)/);
+                    // Extract just the commit hash
+                    var match = text.match(/commit ([a-f0-9]+)/);
                     if (match) {
                         var commitHash = match[1];
-                        versionInfoDiv.textContent = 'commit ' + commitHash + ' (' + match[2] + ')';
                         // Update dropdown text to show commit hash
                         var v6Option = Array.from(phanVersionSelect.options).find(function(opt) {
                             return opt.value === 'v6-dev';
@@ -233,18 +231,12 @@ function updatePhanVersionInfo() {
                         if (v6Option) {
                             v6Option.textContent = 'v6 dev (' + commitHash + ')';
                         }
-                    } else {
-                        versionInfoDiv.textContent = text.trim();
                     }
-                } else {
-                    versionInfoDiv.textContent = '';
                 }
             })
             .catch(function() {
-                versionInfoDiv.textContent = '';
+                // Ignore errors
             });
-    } else {
-        versionInfoDiv.textContent = '';
     }
 }
 
@@ -303,6 +295,13 @@ function reloadPHPModule() {
                 isUsable = true;
                 output_area.innerText = '';
                 enableButtons();
+
+                // Auto-analyze if version was changed
+                if (shouldAutoAnalyze && editor.getValue().trim()) {
+                    shouldAutoAnalyze = false;
+                    console.log('Auto-analyzing after version change');
+                    analyze_button.click();
+                }
             }).catch(function (error) {
                 showWebAssemblyError('Failed to initialize WebAssembly module: ' + error.message);
             });
@@ -345,11 +344,13 @@ function init() {
         }
     }
 
+    var shouldAutoAnalyze = false;
+
     phpVersionSelect.addEventListener('change', function() {
         currentPhpVersion = this.value;
         console.log('PHP version changed to:', currentPhpVersion);
         enforceAstConstraints();
-        // Reload the PHP module with new version
+        shouldAutoAnalyze = true;
         reloadPHPModule();
     });
 
@@ -357,14 +358,15 @@ function init() {
         currentPhanVersion = this.value;
         console.log('Phan version changed to:', currentPhanVersion);
         updatePhanVersionInfo();
-        // Reload the PHP module with new version
+        enforceAstConstraints();
+        shouldAutoAnalyze = true;
         reloadPHPModule();
     });
 
     astVersionSelect.addEventListener('change', function() {
         currentAstVersion = this.value;
         console.log('ast version changed to:', currentAstVersion);
-        // Reload the PHP module with new version
+        shouldAutoAnalyze = true;
         reloadPHPModule();
     });
 
