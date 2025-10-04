@@ -56,6 +56,9 @@ git pull origin gh-pages
 # Copy web files from master (builds/ persists and is tracked on gh-pages)
 echo "Copying web files..."
 git checkout $CURRENT_BRANCH -- index.html static/demo.js static/demo.css favicon.ico
+# Also copy any phan metadata files (*.phar.info, *.phar.commit)
+cp -f *.phar.info . 2>/dev/null || true
+cp -f *.phar.commit . 2>/dev/null || true
 
 # Show status
 echo ""
@@ -69,6 +72,8 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     # Commit
     echo "Committing changes..."
     git add index.html static/demo.js static/demo.css favicon.ico builds/
+    # Also add phan metadata files if they exist
+    git add *.phar.info *.phar.commit 2>/dev/null || true
 
     # Create commit message with version info
     COMMIT_MSG="Deploy multi-version support

@@ -23,12 +23,12 @@ The project now supports building multiple PHP and Phan version combinations. Us
 
 **Supported versions:**
 - PHP: 8.1, 8.2, 8.3, 8.4, 8.5 RC1
-- Phan: 5.5.1, 5.5.2 (user-selectable)
+- Phan: 5.5.1, 5.5.2, v6-dev (user-selectable)
 - php-ast: 1.1.2, 1.1.3 (user-selectable)
 
 **Note:**
-- Development Phan versions from git are not currently available due to phar build complexity.
-- PHP 8.4 and 8.5 require php-ast 1.1.3 (ast 1.1.2 is incompatible and will be disabled automatically)
+- Phan v6-dev is built from the v6 branch using `internal/make_phar`
+- PHP 8.4, 8.5, and Phan v6-dev all require php-ast 1.1.3 (ast 1.1.2 is incompatible and will be disabled automatically)
 
 ### Build with Docker (recommended)
 ```bash
@@ -42,21 +42,26 @@ docker run --rm -v $(pwd):/src emscripten/emsdk bash -c 'apt update && DEBIAN_FR
 
 The multi-version build process (`build-multi.sh`):
 1. Downloads Phan 5.5.1 and 5.5.2 from GitHub releases
-2. For each PHP version (8.1, 8.2, 8.3, 8.4, 8.5 RC1):
+2. Builds Phan v6-dev from master branch using `internal/make_phar`
+3. For each PHP version (8.1, 8.2, 8.3, 8.4, 8.5 RC1):
    - For each compatible php-ast version (1.1.2, 1.1.3):
-     - For each Phan version (5.5.1, 5.5.2):
+     - For each Phan version (5.5.1, 5.5.2, v6-dev):
        - Downloads PHP source
        - Applies version-specific error handler patch (`main-8.{1,2,3,4,5}.c`)
        - Downloads php-ast extension (version-specific)
        - Configures PHP with minimal extensions using `emconfigure`
        - Compiles with `emmake` and `emcc`
        - Bundles with the selected Phan version
-3. Outputs to `builds/php-{VERSION}/phan-{VERSION}/ast-{VERSION}/` containing:
+4. Outputs to `builds/php-{VERSION}/phan-{VERSION}/ast-{VERSION}/` containing:
    - `php.wasm`
    - `php.js`
    - `php.data`
 
-**Note:** Building all combinations creates 16 builds (3 PHP × 2 ast × 2 Phan + 2 PHP × 1 ast × 2 Phan). Each build can take 5-15 minutes.
+**Note:** Building all combinations creates 19 builds:
+- 3 PHP versions (8.1, 8.2, 8.3) × 2 ast × 2 Phan = 12 builds
+- 2 PHP versions (8.4, 8.5) × 1 ast × 2 Phan = 4 builds
+- 5 PHP versions × 1 ast × 1 Phan v6-dev = 5 builds (v6-dev requires ast 1.1.3)
+Each build can take 5-15 minutes.
 
 ### Building Single Versions (Legacy)
 
@@ -124,7 +129,7 @@ After building, test locally by:
 1. Running local web server (see "Running Locally")
 2. Opening browser to http://localhost:8080/
 3. Selecting different PHP, Phan, and php-ast versions from dropdowns
-4. Verifying PHP 8.4 and 8.5 auto-select ast 1.1.3 and disable ast 1.1.2
+4. Verifying PHP 8.4, 8.5, and Phan v6-dev auto-select ast 1.1.3 and disable ast 1.1.2
 5. Testing both "Analyze" (Phan) and "Run" (PHP execution) buttons
 6. Verifying version switching works correctly
 
@@ -136,14 +141,16 @@ After building, test locally by:
 
 **Phan versions** are configured in `build-multi.sh`:
 - Array: `PHAN_RELEASED_VERSIONS=("5.5.1" "5.5.2")`
+- Git branch: `PHAN_V6_DEV_BRANCH="v6"` (for v6-dev)
 - Also update dropdown in `index.html` `<select id="phan-version">`
-- Dev versions from git are currently disabled
+- v6-dev is built from v6 branch using `internal/make_phar` script
+- v6-dev requires php-ast 1.1.3+ (incompatible with ast 1.1.2)
 
 **php-ast versions** are configured in `build-multi.sh`:
 - Array: `AST_VERSIONS=("1.1.2" "1.1.3")`
 - Also update dropdown in `index.html` `<select id="ast-version">`
-- Build script automatically skips incompatible combinations (PHP 8.4/8.5 + ast 1.1.2)
-- UI automatically enforces constraints when user selects PHP 8.4 or 8.5
+- Build script automatically skips incompatible combinations (PHP 8.4/8.5/Phan v6-dev + ast 1.1.2)
+- UI automatically enforces constraints when user selects PHP 8.4, 8.5, or Phan v6-dev
 
 ## Publishing
 
