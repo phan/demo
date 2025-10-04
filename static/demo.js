@@ -977,6 +977,16 @@ if (!window.WebAssembly) {
                 isUsable = true;
                 init();
                 initPluginModal();
+
+                // Auto-analyze if code was provided in URL
+                if ((query.has('c') || query.has('code')) && editor.getValue().trim()) {
+                    console.log('Auto-analyzing from URL parameter');
+                    setTimeout(function() {
+                        if (isUsable) {
+                            analyze_button.click();
+                        }
+                    }, 100);
+                }
             }).catch(function (error) {
                 showWebAssemblyError('Failed to initialize WebAssembly module: ' + error.message);
             });
