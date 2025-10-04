@@ -364,7 +364,11 @@ echo "Building PHP + Phan + ast combinations..."
 
 for php_version in "${PHP_VERSIONS[@]}"; do
     for ast_version in "${AST_VERSIONS[@]}"; do
-        # Skip ast 1.1.2 for PHP 8.5 (incompatible)
+        # Skip ast 1.1.2 for PHP 8.4 and 8.5 (incompatible)
+        if [[ "$php_version" == 8.4* ]] && [[ "$ast_version" == "1.1.2" ]]; then
+            echo "Skipping PHP ${php_version} + ast ${ast_version} (incompatible)"
+            continue
+        fi
         if [[ "$php_version" == 8.5* ]] && [[ "$ast_version" == "1.1.2" ]]; then
             echo "Skipping PHP ${php_version} + ast ${ast_version} (incompatible)"
             continue

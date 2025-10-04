@@ -280,13 +280,13 @@ function init() {
 
     // Function to enforce ast version constraints
     function enforceAstConstraints() {
-        if (currentPhpVersion === '85') {
-            // PHP 8.5 requires ast 1.1.3
+        if (currentPhpVersion === '84' || currentPhpVersion === '85') {
+            // PHP 8.4 and 8.5 require ast 1.1.3
             if (currentAstVersion === '1.1.2') {
                 currentAstVersion = '1.1.3';
                 astVersionSelect.value = '1.1.3';
             }
-            // Disable ast 1.1.2 option for PHP 8.5
+            // Disable ast 1.1.2 option for PHP 8.4 and 8.5
             Array.from(astVersionSelect.options).forEach(function(option) {
                 option.disabled = (option.value === '1.1.2');
             });
