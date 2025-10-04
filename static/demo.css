@@ -280,7 +280,7 @@ h1 {
     background-color: white;
     border-radius: 8px;
     width: 90%;
-    max-width: 600px;
+    max-width: 800px;
     max-height: 80vh;
     display: flex;
     flex-direction: column;
@@ -370,9 +370,9 @@ h1 {
 }
 
 .plugin-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25em;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.25em 1em;
 }
 
 .plugin-item {
