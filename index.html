@@ -93,6 +93,9 @@ $code_base = require_once($phar . '/src/codebase.php');
 
 require_once($phar . '/src/Phan/Bootstrap.php');
 
+// Create a stub .phan/config.php to suppress warning
+@mkdir('.phan');
+file_put_contents('.phan/config.php', '<?php return [];');
 
 file_put_contents('input', $CONTENTS_TO_ANALYZE);
 Config::setValue('file_list', ['input']);
