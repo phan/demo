@@ -295,6 +295,13 @@ function reloadPHPModule() {
                 isUsable = true;
                 output_area.innerText = '';
                 enableButtons();
+
+                // Auto-analyze if version was changed
+                if (shouldAutoAnalyze && editor.getValue().trim()) {
+                    shouldAutoAnalyze = false;
+                    console.log('Auto-analyzing after version change');
+                    analyze_button.click();
+                }
             }).catch(function (error) {
                 showWebAssemblyError('Failed to initialize WebAssembly module: ' + error.message);
             });
@@ -337,11 +344,13 @@ function init() {
         }
     }
 
+    var shouldAutoAnalyze = false;
+
     phpVersionSelect.addEventListener('change', function() {
         currentPhpVersion = this.value;
         console.log('PHP version changed to:', currentPhpVersion);
         enforceAstConstraints();
-        // Reload the PHP module with new version
+        shouldAutoAnalyze = true;
         reloadPHPModule();
     });
 
@@ -349,14 +358,15 @@ function init() {
         currentPhanVersion = this.value;
         console.log('Phan version changed to:', currentPhanVersion);
         updatePhanVersionInfo();
-        // Reload the PHP module with new version
+        enforceAstConstraints();
+        shouldAutoAnalyze = true;
         reloadPHPModule();
     });
 
     astVersionSelect.addEventListener('change', function() {
         currentAstVersion = this.value;
         console.log('ast version changed to:', currentAstVersion);
-        // Reload the PHP module with new version
+        shouldAutoAnalyze = true;
         reloadPHPModule();
     });
 
