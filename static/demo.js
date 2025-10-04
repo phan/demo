@@ -209,6 +209,12 @@ function doRun(code, outputIsHTML, defaultText) {
     });
 }
 function doRunWithWrapper(analysisWrapper, code, outputIsHTML, defaultText) {
+    console.log('doRunWithWrapper called with versions:', {
+        php: currentPhpVersion,
+        phan: currentPhanVersion,
+        ast: currentAstVersion
+    });
+
     // single quotes aren't escaped by encodeURIComponent, but double quotes are.
     // Other problematic characters are escaped, and this preserves UTF-8.
     var contentsFragment = 'rawurldecode("' + encodeURIComponent(code) + '")';
@@ -413,11 +419,20 @@ function init() {
     function enforceAstConstraints() {
         // Re-read current ast version from dropdown
         currentAstVersion = astVersionSelect.value;
+        console.log('enforceAstConstraints called:', {
+            currentPhpVersion: currentPhpVersion,
+            currentPhanVersion: currentPhanVersion,
+            currentAstVersion: currentAstVersion,
+            dropdownValue: astVersionSelect.value
+        });
+
         // PHP 8.4, 8.5, and Phan v6-dev all require ast 1.1.3
         var requiresAst113 = (currentPhpVersion === '84' || currentPhpVersion === '85' || currentPhanVersion === 'v6-dev');
 
         if (requiresAst113) {
+            console.log('Requires ast 1.1.3, current is:', currentAstVersion);
             if (currentAstVersion === '1.1.2') {
+                console.log('Forcing ast version to 1.1.3');
                 currentAstVersion = '1.1.3';
                 astVersionSelect.value = '1.1.3';
             }
@@ -431,6 +446,7 @@ function init() {
                 option.disabled = false;
             });
         }
+        console.log('After enforcement, currentAstVersion:', currentAstVersion);
     }
 
     phpVersionSelect.addEventListener('change', function() {
@@ -719,6 +735,7 @@ function initPluginModal() {
 
     // Apply button
     applyBtn.addEventListener('click', function() {
+        console.log('Modal apply clicked');
         // Collect checked plugins
         var newActivePlugins = [];
         allPlugins.forEach(function(plugin) {
@@ -729,9 +746,11 @@ function initPluginModal() {
         });
 
         activePlugins = newActivePlugins;
+        console.log('Active plugins set to:', activePlugins);
         closeModal();
 
         // Auto-analyze with new plugin configuration
+        console.log('About to trigger analyze, currentAstVersion:', currentAstVersion);
         if (isUsable && editor.getValue().trim()) {
             analyze_button.click();
         }
