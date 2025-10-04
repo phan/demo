@@ -1,0 +1,15 @@
+php.wasm
+php.js
+php.data
+gh-pages
+
+# Build artifacts (but NOT builds/ - we want that tracked on gh-pages)
+php-8.*
+php-7.*
+*.phar
+phan-git-*/
+ast-*
+package.xml
+
+.*.swp
+.*.swo
