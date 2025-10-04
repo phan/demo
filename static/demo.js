@@ -39,6 +39,8 @@ var phpModule;
 var phpModuleDidLoad = false;
 var combinedOutput = '';
 var combinedHTMLOutput = '';
+var currentPhpVersion = '84';  // default
+var currentPhanVersion = '5.5.1';  // default
 
 function getOrDefault(value, defaultValue) {
     return value !== '' ? value : defaultValue;
@@ -132,6 +134,10 @@ function doRunWithWrapper(analysisWrapper, code, outputIsHTML, defaultText) {
     var contentsFragment = 'rawurldecode("' + encodeURIComponent(code) + '")';
     var analysisCode = analysisWrapper.replace('$CONTENTS_TO_ANALYZE', contentsFragment);
 
+    // Replace phan phar path placeholder
+    var phanPharName = 'phan-' + currentPhanVersion + '.phar';
+    analysisCode = analysisCode.replace('$PHAN_PHAR_PATH', phanPharName);
+
     doRun(analysisCode, outputIsHTML, defaultText);
 }
 
@@ -189,17 +195,70 @@ function fetchRemotePackage(packageName, callback) {
 /* This can be reused - This avoids notices about HTTP 302s and using the streaming API in some browsers (firefox), but is counterproductive if other browsers (Chrome) would normally just use disk cache. */
 var phpWasmBinary = null;
 var phpWasmData = null;
+var currentVersionPath = '';
+
+function getVersionPath() {
+    return 'builds/php-' + currentPhpVersion + '/phan-' + currentPhanVersion + '/';
+}
+
 function loadPhpWasm(cb) {
-    console.log('called loadPhpWasm');
-    if (phpWasmBinary) {
-        cb(phpWasmBinary);
-        return;
-    }
-    fetchRemotePackage('php.wasm', function (data) {
+    currentVersionPath = getVersionPath();
+    console.log('called loadPhpWasm for path:', currentVersionPath);
+
+    // Reset cached data when version changes
+    phpWasmBinary = null;
+    phpWasmData = null;
+
+    fetchRemotePackage(currentVersionPath + 'php.wasm', function (data) {
         phpWasmBinary = data;
-        fetchRemotePackage('php.data', function (data) {
+        fetchRemotePackage(currentVersionPath + 'php.data', function (data) {
             phpWasmData = data;
             cb(phpWasmBinary);
+        });
+    });
+}
+
+function reloadPHPModule() {
+    if (!isUsable) {
+        console.log('Cannot reload - PHP is currently executing');
+        return;
+    }
+
+    output_area.innerText = 'Loading new PHP/Phan version...';
+    disableButtons();
+    run_button.textContent = "Loading...";
+    analyze_button.textContent = "Loading...";
+
+    // Force cleanup of current module
+    if (phpModule) {
+        try {
+            phpModule._pib_force_exit();
+        } catch (e) {
+            // ExitStatus expected
+        }
+        phpModule = null;
+    }
+    phpModuleDidLoad = false;
+    fillReusableMemoryWithZeroes();
+
+    // Clear window.PHP to force reload of new version
+    window.PHP = undefined;
+
+    // Load new php.js script for the new version
+    loadPHPScript(function() {
+        // Load new version
+        loadPhpWasm(function () {
+            console.log('successfully downloaded new php.wasm');
+            generateNewPHPModule().then(function (newPHPModule) {
+                console.log('successfully initialized new php module');
+                phpModule = newPHPModule;
+                phpModuleDidLoad = true;
+                isUsable = true;
+                output_area.innerText = '';
+                enableButtons();
+            }).catch(function (error) {
+                showWebAssemblyError('Failed to initialize WebAssembly module: ' + error.message);
+            });
         });
     });
 }
@@ -211,6 +270,25 @@ function init() {
     didInit = true;
     // This is a monospace element without HTML.
     // output_area.innerText = "Click ANALYZE";
+
+    // Set up version selectors
+    var phpVersionSelect = document.getElementById('php-version');
+    var phanVersionSelect = document.getElementById('phan-version');
+
+    phpVersionSelect.addEventListener('change', function() {
+        currentPhpVersion = this.value;
+        console.log('PHP version changed to:', currentPhpVersion);
+        // Reload the PHP module with new version
+        reloadPHPModule();
+    });
+
+    phanVersionSelect.addEventListener('change', function() {
+        currentPhanVersion = this.value;
+        console.log('Phan version changed to:', currentPhanVersion);
+        // Reload the PHP module with new version
+        reloadPHPModule();
+    });
+
     enableButtons();
 
     run_button.addEventListener('click', function () {
@@ -337,22 +415,42 @@ function showWebAssemblyError(message) {
         '<p>But you can install <a href="https://github.com/phan/phan">Phan</a> locally with <a href="https://github.com/phan/phan/wiki/Getting-Started">these instructions for getting started.</a>, or try this in Firefox or Chrome.</p>';
     markButtonsAsUnusable();
 }
+function loadPHPScript(callback) {
+    var versionPath = getVersionPath();
+    var scriptUrl = versionPath + 'php.js';
+
+    console.log('Loading PHP script from:', scriptUrl);
+
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.src = scriptUrl;
+    script.onload = function() {
+        console.log('Successfully loaded php.js');
+        callback();
+    };
+    script.onerror = function() {
+        showWebAssemblyError('Failed to load php.js from ' + scriptUrl);
+    };
+    document.head.appendChild(script);
+}
+
 if (!window.WebAssembly) {
     showWebAssemblyError('Your browser does not support WebAssembly.');
-} else if (!window.PHP) {
-    showWebAssemblyError('Failed to load php.js.');
 } else {
-    console.log('downloading php.wasm');
-    loadPhpWasm(function () {
-        console.log('successfully downloaded php.wasm to reuse');
-        /** This fills the wasm memory with 0s, so that the next fresh program startup succeeds */
-        generateNewPHPModule().then(function (newPHPModule) {
-            console.log('successfully initialized php module');
-            phpModule = newPHPModule
-            isUsable = true;
-            init();
-        }).catch(function (error) {
-            showWebAssemblyError('Failed to initialize WebAssembly module: ' + error.message);
+    console.log('Loading PHP script dynamically');
+    loadPHPScript(function() {
+        console.log('downloading php.wasm');
+        loadPhpWasm(function () {
+            console.log('successfully downloaded php.wasm to reuse');
+            /** This fills the wasm memory with 0s, so that the next fresh program startup succeeds */
+            generateNewPHPModule().then(function (newPHPModule) {
+                console.log('successfully initialized php module');
+                phpModule = newPHPModule
+                isUsable = true;
+                init();
+            }).catch(function (error) {
+                showWebAssemblyError('Failed to initialize WebAssembly module: ' + error.message);
+            });
         });
     });
 }
