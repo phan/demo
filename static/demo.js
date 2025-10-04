@@ -55,7 +55,7 @@ var combinedOutput = '';
 var combinedHTMLOutput = '';
 var currentPhpVersion = '84';  // default
 var currentPhanVersion = '5.5.2';  // default
-var currentAstVersion = '1.1.2';  // default
+var currentAstVersion = '1.1.3';  // default (matches HTML)
 var shouldAutoAnalyze = false;
 
 // Phan plugin definitions and level mappings
