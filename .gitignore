@@ -1,14 +1,14 @@
-php.wasm
-php.js
-php.data
+/php.wasm
+/php.js
+/php.data
 gh-pages
 
-# Build artifacts (but NOT builds/ - we want that tracked on gh-pages)
-php-8.*
-php-7.*
+# Build artifacts at root level only
+/php-8.*
+/php-7.*
 *.phar
-phan-git-*/
-ast-*
+/phan-git-*/
+/ast-*.tgz
 package.xml
 
 .*.swp
