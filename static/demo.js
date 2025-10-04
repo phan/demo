@@ -774,6 +774,12 @@ function initPluginModal() {
 if (!window.WebAssembly) {
     showWebAssemblyError('Your browser does not support WebAssembly.');
 } else {
+    // Read initial values from dropdowns BEFORE loading WASM
+    currentPhpVersion = document.getElementById('php-version').value;
+    currentPhanVersion = document.getElementById('phan-version').value;
+    currentAstVersion = document.getElementById('ast-version').value;
+    console.log('Initial versions from HTML:', {php: currentPhpVersion, phan: currentPhanVersion, ast: currentAstVersion});
+
     console.log('Loading PHP script dynamically');
     loadPHPScript(function() {
         console.log('downloading php.wasm');
