@@ -41,7 +41,7 @@ var phpModuleDidLoad = false;
 var combinedOutput = '';
 var combinedHTMLOutput = '';
 var currentPhpVersion = '84';  // default
-var currentPhanVersion = '5.5.1';  // default
+var currentPhanVersion = '5.5.2';  // default
 var currentAstVersion = '1.1.2';  // default
 
 function getOrDefault(value, defaultValue) {
