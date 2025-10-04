@@ -203,6 +203,42 @@ function getVersionPath() {
     return 'builds/php-' + currentPhpVersion + '/phan-' + currentPhanVersion + '/ast-' + currentAstVersion + '/';
 }
 
+function updatePhanVersionInfo() {
+    var versionInfoDiv = document.getElementById('phan-version-info');
+
+    // Only show info for dev versions
+    if (currentPhanVersion === 'v6-dev') {
+        // Fetch the .info file for this version
+        var infoUrl = 'phan-' + currentPhanVersion + '.phar.info';
+
+        fetch(infoUrl)
+            .then(function(response) {
+                if (response.ok) {
+                    return response.text();
+                }
+                return null;
+            })
+            .then(function(text) {
+                if (text) {
+                    // Extract just the commit hash and date part
+                    var match = text.match(/commit ([a-f0-9]+) \(([^)]+)\)/);
+                    if (match) {
+                        versionInfoDiv.textContent = 'commit ' + match[1] + ' (' + match[2] + ')';
+                    } else {
+                        versionInfoDiv.textContent = text.trim();
+                    }
+                } else {
+                    versionInfoDiv.textContent = '';
+                }
+            })
+            .catch(function() {
+                versionInfoDiv.textContent = '';
+            });
+    } else {
+        versionInfoDiv.textContent = '';
+    }
+}
+
 function loadPhpWasm(cb) {
     currentVersionPath = getVersionPath();
     console.log('called loadPhpWasm for path:', currentVersionPath);
@@ -280,18 +316,20 @@ function init() {
 
     // Function to enforce ast version constraints
     function enforceAstConstraints() {
-        if (currentPhpVersion === '84' || currentPhpVersion === '85') {
-            // PHP 8.4 and 8.5 require ast 1.1.3
+        // PHP 8.4, 8.5, and Phan v6-dev all require ast 1.1.3
+        var requiresAst113 = (currentPhpVersion === '84' || currentPhpVersion === '85' || currentPhanVersion === 'v6-dev');
+
+        if (requiresAst113) {
             if (currentAstVersion === '1.1.2') {
                 currentAstVersion = '1.1.3';
                 astVersionSelect.value = '1.1.3';
             }
-            // Disable ast 1.1.2 option for PHP 8.4 and 8.5
+            // Disable ast 1.1.2 option
             Array.from(astVersionSelect.options).forEach(function(option) {
                 option.disabled = (option.value === '1.1.2');
             });
         } else {
-            // Enable all ast options for other PHP versions
+            // Enable all ast options
             Array.from(astVersionSelect.options).forEach(function(option) {
                 option.disabled = false;
             });
@@ -309,6 +347,7 @@ function init() {
     phanVersionSelect.addEventListener('change', function() {
         currentPhanVersion = this.value;
         console.log('Phan version changed to:', currentPhanVersion);
+        updatePhanVersionInfo();
         // Reload the PHP module with new version
         reloadPHPModule();
     });
@@ -322,6 +361,7 @@ function init() {
 
     // Initial constraint check
     enforceAstConstraints();
+    updatePhanVersionInfo();
 
     enableButtons();
 
