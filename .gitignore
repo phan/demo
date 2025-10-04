@@ -1,19 +1,18 @@
-php.wasm
-php.js
-php.data
+/php.wasm
+/php.js
+/php.data
 gh-pages
 
 # Multi-version builds
 builds/
 
-php-8.*
-php-7.*
+# Build artifacts at root level only
+/php-8.*
+/php-7.*
 *.phar
-phan-git-*/
-ast-*
+/phan-git-*/
+/ast-*.tgz
 package.xml
 
 .*.swp
 .*.swo
-
-
