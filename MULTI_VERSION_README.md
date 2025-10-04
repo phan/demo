@@ -17,19 +17,19 @@ The phan-demo system has been enhanced to support multiple PHP and Phan version 
 
 ### Phan Versions
 - 5.5.1 (latest stable release)
-- v5-dev (built from master branch HEAD)
-- v6-dev (built from master branch HEAD)
+
+**Note:** Development versions (v5-dev, v6-dev) are currently disabled due to complexity in building phars from git. These may be added in a future update once the phar build process is properly debugged.
 
 ## Changes Made
 
 ### 1. Build System (`build-multi.sh`)
 
 New multi-version build script that:
-- Downloads or builds all Phan versions (released and from git)
-- Builds each PHP version with each Phan version
+- Downloads Phan 5.5.1 release
+- Builds each PHP version (8.1, 8.2, 8.3, 8.4, 8.5 RC1) with Phan 5.5.1
 - Outputs to `builds/php-{VERSION}/phan-{VERSION}/` directory structure
 - Handles special cases like PHP RC versions from maintainer directories
-- Total of 15 builds (5 PHP × 3 Phan versions)
+- Total of 5 builds (5 PHP versions × 1 Phan version)
 
 ### 2. Web UI (`index.html`)
 

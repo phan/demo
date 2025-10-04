@@ -5,6 +5,7 @@ var editor = ace.edit("editor");
 editor.setTheme("ace/theme/github");
 editor.session.setMode("ace/mode/php");
 editor.setShowPrintMargin(false);
+editor.setFontSize(14);
 
 var default_code = "<?php\n" + document.getElementById('features_example').innerText;
 
@@ -41,6 +42,7 @@ var combinedOutput = '';
 var combinedHTMLOutput = '';
 var currentPhpVersion = '84';  // default
 var currentPhanVersion = '5.5.1';  // default
+var currentAstVersion = '1.1.2';  // default
 
 function getOrDefault(value, defaultValue) {
     return value !== '' ? value : defaultValue;
@@ -198,7 +200,7 @@ var phpWasmData = null;
 var currentVersionPath = '';
 
 function getVersionPath() {
-    return 'builds/php-' + currentPhpVersion + '/phan-' + currentPhanVersion + '/';
+    return 'builds/php-' + currentPhpVersion + '/phan-' + currentPhanVersion + '/ast-' + currentAstVersion + '/';
 }
 
 function loadPhpWasm(cb) {
@@ -274,10 +276,32 @@ function init() {
     // Set up version selectors
     var phpVersionSelect = document.getElementById('php-version');
     var phanVersionSelect = document.getElementById('phan-version');
+    var astVersionSelect = document.getElementById('ast-version');
+
+    // Function to enforce ast version constraints
+    function enforceAstConstraints() {
+        if (currentPhpVersion === '85') {
+            // PHP 8.5 requires ast 1.1.3
+            if (currentAstVersion === '1.1.2') {
+                currentAstVersion = '1.1.3';
+                astVersionSelect.value = '1.1.3';
+            }
+            // Disable ast 1.1.2 option for PHP 8.5
+            Array.from(astVersionSelect.options).forEach(function(option) {
+                option.disabled = (option.value === '1.1.2');
+            });
+        } else {
+            // Enable all ast options for other PHP versions
+            Array.from(astVersionSelect.options).forEach(function(option) {
+                option.disabled = false;
+            });
+        }
+    }
 
     phpVersionSelect.addEventListener('change', function() {
         currentPhpVersion = this.value;
         console.log('PHP version changed to:', currentPhpVersion);
+        enforceAstConstraints();
         // Reload the PHP module with new version
         reloadPHPModule();
     });
@@ -288,6 +312,16 @@ function init() {
         // Reload the PHP module with new version
         reloadPHPModule();
     });
+
+    astVersionSelect.addEventListener('change', function() {
+        currentAstVersion = this.value;
+        console.log('ast version changed to:', currentAstVersion);
+        // Reload the PHP module with new version
+        reloadPHPModule();
+    });
+
+    // Initial constraint check
+    enforceAstConstraints();
 
     enableButtons();
 

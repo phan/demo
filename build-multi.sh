@@ -6,9 +6,9 @@
 set -xeu
 
 # Configuration
-PHP_VERSIONS=("8.1.31" "8.2.27" "8.3.16" "8.4.2" "8.5.0RC1")
-AST_VERSION="1.1.2"
-AST_PATH="ast-$AST_VERSION"
+PHP_VERSIONS=("8.1.33" "8.2.29" "8.3.26" "8.4.13" "8.5.0RC1")
+# AST versions to build
+AST_VERSIONS=("1.1.2" "1.1.3")
 
 # Phan versions - we'll build different combinations
 # Latest released v5
@@ -38,17 +38,18 @@ download_phan_release() {
     local phar_name="phan-${version}.phar"
 
     if [ ! -e "$phar_name" ]; then
-        echo "Downloading Phan $version release"
-        wget "https://github.com/phan/phan/releases/download/${version}/phan.phar" -O "$phar_name"
+        echo "Downloading Phan $version release" >&2
+        wget "https://github.com/phan/phan/releases/download/${version}/phan.phar" -O "$phar_name" >&2
     fi
 
-    # Verify the phar works
-    php "$phar_name" --version || {
-        echo "Downloaded phar is corrupt!"
+    # Verify the phar works (send output to stderr so it doesn't pollute the return value)
+    php "$phar_name" --version >&2 || {
+        echo "Downloaded phar is corrupt!" >&2
         rm "$phar_name"
         exit 1
     }
 
+    # Only output the phar name to stdout for capture
     echo "$phar_name"
 }
 
@@ -60,61 +61,121 @@ build_phan_from_git() {
     local phar_name="phan-${version_label}.phar"
 
     if [ ! -e "$phar_name" ]; then
-        echo "Building Phan from git branch: $branch"
+        echo "Building Phan from git branch: $branch" >&2
 
         if [ ! -d "$phan_git_dir" ]; then
-            git clone --depth 1 --branch "$branch" https://github.com/phan/phan.git "$phan_git_dir"
+            git clone --depth 1 --branch "$branch" https://github.com/phan/phan.git "$phan_git_dir" >&2
         else
-            (cd "$phan_git_dir" && git pull)
+            (cd "$phan_git_dir" && git pull) >&2
         fi
 
         # Build the phar
         (
             cd "$phan_git_dir"
-            composer install --no-dev --optimize-autoloader
-            php scripts/dump_markdown_preview || true  # May not exist in all versions
-            php scripts/build_phar.php || {
-                # Try alternative build method
-                composer build-phar || {
-                    echo "Failed to build phar from git"
+
+            # Try to build the phar - different Phan versions use different methods
+            if [ -f "internal/package.php" ]; then
+                echo "Using Phan's internal/package.php (modern Phan)" >&2
+
+                # Clean and reinstall dependencies to ensure fresh autoloader
+                rm -rf vendor/
+                composer install --classmap-authoritative --prefer-dist --no-dev >&2 || {
+                    echo "Composer install failed" >&2
                     exit 1
                 }
-            }
+
+                # Verify vendor directory is populated
+                if [ ! -f "vendor/autoload.php" ]; then
+                    echo "Error: vendor/autoload.php not found after composer install" >&2
+                    exit 1
+                fi
+
+                # Build the phar
+                rm -rf build
+                mkdir -p build
+                php -d phar.readonly=0 internal/package.php >&2 || {
+                    echo "Failed to build phar with internal/package.php" >&2
+                    exit 1
+                }
+
+                # Make it executable
+                chmod +x build/phan.phar
+
+                # Verify the phar works
+                echo "Verifying built phar..." >&2
+                php build/phan.phar --version >&2 || {
+                    echo "Built phar doesn't work - checking contents" >&2
+                    # Debug: list what's in the phar
+                    php -r "
+                        \$phar = new Phar('build/phan.phar');
+                        echo 'Phar contains ' . count(\$phar) . ' files\n';
+                        echo 'Has vendor/autoload.php: ' . (isset(\$phar['vendor/autoload.php']) ? 'yes' : 'no') . '\n';
+                        echo 'Has src/Phan/CLI.php: ' . (isset(\$phar['src/Phan/CLI.php']) ? 'yes' : 'no') . '\n';
+                    " >&2 || true
+                    exit 1
+                }
+            elif [ -f "scripts/build_phar.php" ]; then
+                echo "Using scripts/build_phar.php (older Phan)" >&2
+                composer install --no-dev --optimize-autoloader >&2 || {
+                    echo "Composer install failed" >&2
+                    exit 1
+                }
+                php scripts/build_phar.php >&2 || {
+                    echo "Failed to build phar with scripts/build_phar.php" >&2
+                    exit 1
+                }
+            else
+                echo "No known phar build method found" >&2
+                echo "Available files:" >&2
+                ls -la internal/ >&2 || true
+                ls -la scripts/ >&2 || true
+                exit 1
+            fi
 
             # Find the generated phar
             if [ -f "phan.phar" ]; then
                 cp phan.phar "../$phar_name"
             elif [ -f "build/phan.phar" ]; then
                 cp build/phan.phar "../$phar_name"
+            elif [ -f "dist/phan.phar" ]; then
+                cp dist/phan.phar "../$phar_name"
             else
-                echo "Could not find built phar"
+                echo "Could not find built phar in expected locations" >&2
+                ls -la >&2
                 exit 1
             fi
-        )
-
-        # Verify the phar works
-        php "$phar_name" --version || {
-            echo "Built phar is corrupt!"
-            rm "$phar_name"
+        ) || {
+            echo "Phar build process failed" >&2
             exit 1
         }
+
+        # Verify the phar works
+        php "$phar_name" --version >&2 || {
+            echo "Built phar is corrupt!" >&2
+            rm -f "$phar_name"
+            exit 1
+        }
+
+        echo "Successfully built $phar_name" >&2
     fi
 
+    # Only output the phar name to stdout for capture
     echo "$phar_name"
 }
 
-# Function to build PHP + Phan combination
-build_php_phan_combo() {
+# Function to build PHP + Phan + ast combination
+build_php_phan_ast_combo() {
     local php_version=$1
     local phan_phar=$2
     local phan_version=$3
+    local ast_version=$4
 
     local php_short=$(get_short_version "$php_version")
     local php_path="php-${php_version}"
-    local output_dir="${BUILD_ROOT}/php-${php_short}/phan-${phan_version}"
+    local output_dir="${BUILD_ROOT}/php-${php_short}/phan-${phan_version}/ast-${ast_version}"
 
     echo "========================================"
-    echo "Building PHP ${php_version} + Phan ${phan_version}"
+    echo "Building PHP ${php_version} + Phan ${phan_version} + ast ${ast_version}"
     echo "========================================"
 
     mkdir -p "$output_dir"
@@ -144,19 +205,32 @@ build_php_phan_combo() {
         tar xf "${php_path}.tar.xz"
     fi
 
-    # Apply error handler patch
-    echo "Applying error handler patch"
-    cp main.c "${php_path}/main/main.c"
+    # Apply error handler patch (use version-specific main.c)
+    # Convert short version (81, 82, etc) to dotted format (8.1, 8.2, etc)
+    local version_major="${php_short:0:1}"
+    local version_minor="${php_short:1}"
+    local main_c_file="main-${version_major}.${version_minor}.c"
+
+    echo "Applying error handler patch: ${main_c_file}"
+    if [ ! -f "$main_c_file" ]; then
+        echo "Error: $main_c_file not found!" >&2
+        exit 1
+    fi
+    cp "$main_c_file" "${php_path}/main/main.c"
 
     # Download and setup ast extension if needed
-    if [ ! -d "${php_path}/ext/ast" ]; then
-        if [ ! -f "${AST_PATH}.tgz" ]; then
-            echo "Downloading ast extension"
-            wget "https://pecl.php.net/get/${AST_PATH}.tgz" -O "${AST_PATH}.tgz"
-        fi
-        tar zxf "${AST_PATH}.tgz"
-        mv "$AST_PATH" "${php_path}/ext/ast"
+    local ast_path="ast-${ast_version}"
+
+    # Remove any existing ast extension to ensure clean build
+    rm -rf "${php_path}/ext/ast"
+
+    if [ ! -f "${ast_path}.tgz" ]; then
+        echo "Downloading ast extension ${ast_version}"
+        wget "https://pecl.php.net/get/${ast_path}.tgz" -O "${ast_path}.tgz"
     fi
+    echo "Extracting ast extension ${ast_version}"
+    tar zxf "${ast_path}.tgz"
+    mv "$ast_path" "${php_path}/ext/ast"
 
     # Copy phan phar into PHP source directory
     cp "$phan_phar" "${php_path}/"
@@ -164,13 +238,26 @@ build_php_phan_combo() {
 
     # Configure and build
     echo "Configuring PHP ${php_version}"
-    export CFLAGS='-O3 -DZEND_MM_ERROR=0'
+
+    # PHP 8.5 needs HAVE_REALLOCARRAY defined since emscripten provides it
+    if [[ "$php_version" == 8.5* ]]; then
+        export CFLAGS='-O3 -DZEND_MM_ERROR=0 -DHAVE_REALLOCARRAY=1'
+    else
+        export CFLAGS='-O3 -DZEND_MM_ERROR=0'
+    fi
 
     (
         cd "$php_path"
         ./buildconf --force
 
         set +e
+
+        # PHP 8.5 specific configure flags
+        local extra_flags=""
+        if [[ "$php_version" == 8.5* ]]; then
+            extra_flags="--disable-opcache-jit"
+        fi
+
         emconfigure ./configure \
           --disable-all \
           --disable-cgi \
@@ -192,7 +279,8 @@ build_php_phan_combo() {
           --enable-mbstring \
           --disable-mbregex \
           --disable-fiber-asm \
-          --enable-tokenizer
+          --enable-tokenizer \
+          $extra_flags
 
         if [ $? -ne 0 ]; then
             echo "emconfigure failed. Content of config.log:"
@@ -204,7 +292,15 @@ build_php_phan_combo() {
 
         echo "Building PHP ${php_version}"
         emmake make clean
-        emmake make -j$(nproc)
+        # Use 75% of available cores to avoid tying up the entire machine
+        local cores=$(nproc)
+        local build_cores=$((cores * 3 / 4))
+        # Ensure at least 1 core
+        if [ $build_cores -lt 1 ]; then
+            build_cores=1
+        fi
+        echo "Using $build_cores cores (of $cores available)"
+        emmake make -j$build_cores
 
         rm -rf out
         mkdir -p out
@@ -244,29 +340,40 @@ echo "Preparing Phan versions..."
 # Released v5
 PHAN_V5_PHAR=$(download_phan_release "$PHAN_V5_RELEASED")
 
+# For now, skip building dev versions due to phar build complexity
+# These can be added later once the phar build process is debugged
 # Development v5 (from master branch - HEAD)
-PHAN_V5_DEV_PHAR=$(build_phan_from_git "$PHAN_V5_DEV_BRANCH" "v5-dev")
+# PHAN_V5_DEV_PHAR=$(build_phan_from_git "$PHAN_V5_DEV_BRANCH" "v5-dev")
 
 # Development v6 (from master branch - assuming v6 dev is also in master for now)
 # Note: If there's a separate v6 branch, update PHAN_V6_DEV_BRANCH
-PHAN_V6_DEV_PHAR=$(build_phan_from_git "$PHAN_V6_DEV_BRANCH" "v6-dev")
+# PHAN_V6_DEV_PHAR=$(build_phan_from_git "$PHAN_V6_DEV_BRANCH" "v6-dev")
+
+echo "Note: Dev versions (v5-dev, v6-dev) are currently disabled due to phar build issues."
+echo "      Only stable release $PHAN_V5_RELEASED will be used for all PHP versions."
 
 # Build all combinations
 # For efficiency, we can choose which combinations to build
 # Building all combinations (5 PHP versions × 3 Phan versions = 15 builds) might be excessive
 # Let's build strategic combinations:
 
-echo "Building PHP + Phan combinations..."
+echo "Building PHP + Phan + ast combinations..."
 
 for php_version in "${PHP_VERSIONS[@]}"; do
-    # Build each PHP version with released Phan v5
-    build_php_phan_combo "$php_version" "$PHAN_V5_PHAR" "$PHAN_V5_RELEASED"
+    for ast_version in "${AST_VERSIONS[@]}"; do
+        # Skip ast 1.1.2 for PHP 8.5 (incompatible)
+        if [[ "$php_version" == 8.5* ]] && [[ "$ast_version" == "1.1.2" ]]; then
+            echo "Skipping PHP ${php_version} + ast ${ast_version} (incompatible)"
+            continue
+        fi
 
-    # Build each PHP version with v5 dev
-    build_php_phan_combo "$php_version" "$PHAN_V5_DEV_PHAR" "v5-dev"
+        # Build each compatible PHP+ast version with released Phan v5
+        build_php_phan_ast_combo "$php_version" "$PHAN_V5_PHAR" "$PHAN_V5_RELEASED" "$ast_version"
 
-    # Build each PHP version with v6 dev
-    build_php_phan_combo "$php_version" "$PHAN_V6_DEV_PHAR" "v6-dev"
+        # Dev versions disabled for now
+        # build_php_phan_ast_combo "$php_version" "$PHAN_V5_DEV_PHAR" "v5-dev" "$ast_version"
+        # build_php_phan_ast_combo "$php_version" "$PHAN_V6_DEV_PHAR" "v6-dev" "$ast_version"
+    done
 done
 
 echo "========================================"
