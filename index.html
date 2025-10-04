@@ -5,6 +5,7 @@
     <meta charset="utf-8">
     <title>Phan in Browser</title>
     <script src="//ajaxorg.github.io/ace-builds/src-min/ace.js" type="text/javascript" charset="utf-8"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
     <link rel="stylesheet" type="text/css" href="static/demo.css" />
     <link rel="shortcut icon" href="favicon.ico" />
 </head>
@@ -46,6 +47,9 @@
             <div class="editor-buttons">
                 <div class="button-wrapper">
                     <button id="configure-plugins" class="configure-btn">Configure Plugins</button>
+                </div>
+                <div class="button-wrapper">
+                    <button id="share-link" class="configure-btn" title="Copy shareable link">📋 Share</button>
                 </div>
                 <div class="button-wrapper">
                     <button id="analyze" title="Analyze PHP Code with Phan" class="disabled" disabled="disabled">Loading...</button>

@@ -15,8 +15,21 @@ var analyze_button = document.getElementById('analyze');
 var output_area = document.getElementById('output');
 var isUsable = false;
 
-var initial_code = query.has('code') ? query.get('code') : '';
-if (query.has('code') && initial_code != default_code) {
+// Handle compressed code parameter
+var initial_code = '';
+if (query.has('c')) {
+    // Compressed code
+    try {
+        initial_code = LZString.decompressFromEncodedURIComponent(query.get('c'));
+    } catch (e) {
+        console.error('Failed to decompress code:', e);
+    }
+} else if (query.has('code')) {
+    // Legacy uncompressed code
+    initial_code = query.get('code');
+}
+
+if (initial_code && initial_code != default_code) {
     editor.setValue(initial_code);
 } else {
     editor.setValue(default_code);
@@ -121,6 +134,42 @@ var pluginLevels = {
 };
 
 var activePlugins = pluginLevels[2]; // Default to level 2
+
+// Parse URL parameters for versions and plugins
+function parseUrlParams() {
+    if (query.has('php')) {
+        var phpVer = query.get('php');
+        if (['81', '82', '83', '84', '85'].indexOf(phpVer) !== -1) {
+            currentPhpVersion = phpVer;
+        }
+    }
+    if (query.has('phan')) {
+        currentPhanVersion = query.get('phan');
+    }
+    if (query.has('ast')) {
+        var astVer = query.get('ast');
+        if (['1.1.2', '1.1.3'].indexOf(astVer) !== -1) {
+            currentAstVersion = astVer;
+        }
+    }
+    // Parse plugins bitfield
+    if (query.has('plugins')) {
+        try {
+            var pluginBits = parseInt(query.get('plugins'), 10);
+            var selectedPlugins = [];
+            allPlugins.forEach(function(plugin, index) {
+                if (pluginBits & (1 << index)) {
+                    selectedPlugins.push(plugin);
+                }
+            });
+            if (selectedPlugins.length > 0) {
+                activePlugins = selectedPlugins;
+            }
+        } catch (e) {
+            console.error('Failed to parse plugins:', e);
+        }
+    }
+}
 
 function getOrDefault(value, defaultValue) {
     return value !== '' ? value : defaultValue;
@@ -481,6 +530,52 @@ function init() {
     updatePhanVersionInfo();
 
     enableButtons();
+
+    // Share button
+    var shareButton = document.getElementById('share-link');
+    shareButton.addEventListener('click', function() {
+        var code = editor.getValue();
+        var url = new URL(window.location.href.split('?')[0]);
+
+        // Add compressed code
+        var compressed = LZString.compressToEncodedURIComponent(code);
+        url.searchParams.set('c', compressed);
+
+        // Add version parameters
+        url.searchParams.set('php', currentPhpVersion);
+        url.searchParams.set('phan', currentPhanVersion);
+        url.searchParams.set('ast', currentAstVersion);
+
+        // Encode active plugins as bitfield
+        var pluginBits = 0;
+        allPlugins.forEach(function(plugin, index) {
+            if (activePlugins.indexOf(plugin) !== -1) {
+                pluginBits |= (1 << index);
+            }
+        });
+        url.searchParams.set('plugins', pluginBits.toString());
+
+        // Copy to clipboard
+        var urlString = url.toString();
+        navigator.clipboard.writeText(urlString).then(function() {
+            // Visual feedback
+            var originalText = shareButton.textContent;
+            shareButton.textContent = '✓ Copied!';
+            shareButton.style.background = '#198754';
+            shareButton.style.color = 'white';
+            shareButton.style.borderColor = '#198754';
+
+            setTimeout(function() {
+                shareButton.textContent = originalText;
+                shareButton.style.background = '';
+                shareButton.style.color = '';
+                shareButton.style.borderColor = '';
+            }, 2000);
+        }).catch(function(err) {
+            console.error('Failed to copy:', err);
+            alert('Failed to copy link. Please copy manually:\n\n' + urlString);
+        });
+    });
 
     run_button.addEventListener('click', function () {
         if (!isUsable) {
@@ -856,11 +951,19 @@ function initPluginModal() {
 if (!window.WebAssembly) {
     showWebAssemblyError('Your browser does not support WebAssembly.');
 } else {
-    // Read initial values from dropdowns BEFORE loading WASM
-    currentPhpVersion = document.getElementById('php-version').value;
-    currentPhanVersion = document.getElementById('phan-version').value;
-    currentAstVersion = document.getElementById('ast-version').value;
-    console.log('Initial versions from HTML:', {php: currentPhpVersion, phan: currentPhanVersion, ast: currentAstVersion});
+    // Parse URL parameters first
+    parseUrlParams();
+
+    // Set dropdown values from URL params or defaults
+    var phpSelect = document.getElementById('php-version');
+    var phanSelect = document.getElementById('phan-version');
+    var astSelect = document.getElementById('ast-version');
+
+    phpSelect.value = currentPhpVersion;
+    phanSelect.value = currentPhanVersion;
+    astSelect.value = currentAstVersion;
+
+    console.log('Initial versions:', {php: currentPhpVersion, phan: currentPhanVersion, ast: currentAstVersion});
 
     console.log('Loading PHP script dynamically');
     loadPHPScript(function() {
