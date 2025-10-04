@@ -43,6 +43,7 @@ var combinedHTMLOutput = '';
 var currentPhpVersion = '84';  // default
 var currentPhanVersion = '5.5.2';  // default
 var currentAstVersion = '1.1.2';  // default
+var shouldAutoAnalyze = false;
 
 function getOrDefault(value, defaultValue) {
     return value !== '' ? value : defaultValue;
@@ -343,8 +344,6 @@ function init() {
             });
         }
     }
-
-    var shouldAutoAnalyze = false;
 
     phpVersionSelect.addEventListener('change', function() {
         currentPhpVersion = this.value;
