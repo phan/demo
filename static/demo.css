@@ -20,6 +20,31 @@ body {
     padding: 1.25em 0;
 }
 
+.version-selectors {
+    display: block;
+    margin-bottom: 1em;
+}
+
+.selector-wrapper {
+    display: inline-block;
+    margin-right: 2em;
+}
+
+.selector-wrapper label {
+    font-weight: 600;
+    margin-right: 0.5em;
+    color: #333;
+}
+
+.selector-wrapper select {
+    padding: 0.5em;
+    font-size: 14px;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+}
+
 .editor-buttons {
     display: block;
 }
