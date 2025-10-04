@@ -566,9 +566,10 @@ function setupLineHighlighting() {
         }
     });
 
-    // Add hover handler for editor gutters (line numbers)
-    editor.on('guttermousemove', function(e) {
-        var lineNum = e.getDocumentPosition().row + 1;
+    // Highlight errors when cursor moves in editor
+    function highlightErrorsForCurrentLine() {
+        var cursorPos = editor.getCursorPosition();
+        var lineNum = cursorPos.row + 1;
 
         // Find and highlight matching errors
         var errorPs = output_area.querySelectorAll('p');
@@ -585,15 +586,13 @@ function setupLineHighlighting() {
                 errorP.classList.remove('highlighted');
             }
         });
-    });
+    }
 
-    editor.on('guttermouseout', function() {
-        // Remove all error highlights
-        var errorPs = output_area.querySelectorAll('p');
-        errorPs.forEach(function(errorP) {
-            errorP.classList.remove('highlighted');
-        });
-    });
+    // Listen for cursor position changes
+    editor.selection.on('changeCursor', highlightErrorsForCurrentLine);
+
+    // Initial highlight on page load
+    highlightErrorsForCurrentLine();
 }
 
 var sizeInBytes = 134217728;
