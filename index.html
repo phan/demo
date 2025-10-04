@@ -45,6 +45,9 @@
             </div>
             <div class="editor-buttons">
                 <div class="button-wrapper">
+                    <button id="configure-plugins" class="configure-btn">Configure Plugins</button>
+                </div>
+                <div class="button-wrapper">
                     <button id="analyze" title="Analyze PHP Code with Phan" class="disabled" disabled="disabled">Loading...</button>
                 </div>
                 <div class="button-wrapper">
@@ -99,21 +102,8 @@ file_put_contents('.phan/config.php', '<?php return [];');
 
 file_put_contents('input', $CONTENTS_TO_ANALYZE);
 Config::setValue('file_list', ['input']);
-// These plugins are what you'd see with --init-level=2
-Config::setValue('plugins', [
-    'AlwaysReturnPlugin',
-    'DollarDollarPlugin',
-    'DuplicateArrayKeyPlugin',
-    'DuplicateExpressionPlugin',
-    'PregRegexCheckerPlugin',
-    'PrintfCheckerPlugin',
-    'SleepCheckerPlugin',
-    'UnreachableCodePlugin',
-    'UseReturnValuePlugin',
-    'EmptyStatementListPlugin',
-    'StrictComparisonPlugin',
-    'LoopVariableReusePlugin',
-]);
+// Plugins will be set dynamically from JavaScript
+$ACTIVE_PLUGINS_PLACEHOLDER
 // This is stricter, though.
 Config::setValue('plugin_config', [
     'infer_pure_methods' => true,
@@ -186,6 +176,33 @@ class MyClass {
     }
 }
 demo(2, new SplObjectStorage());</textarea>
+
+    <!-- Plugin Configuration Modal -->
+    <div id="plugin-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Configure Phan Plugins</h2>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="level-buttons">
+                    <button class="level-btn" data-level="1">Level 1</button>
+                    <button class="level-btn" data-level="2">Level 2</button>
+                    <button class="level-btn" data-level="3">Level 3</button>
+                    <button class="level-btn" data-level="4">Level 4</button>
+                    <button class="level-btn" data-level="5">Level 5</button>
+                </div>
+                <div class="plugin-list" id="plugin-list">
+                    <!-- Plugins will be populated by JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" id="modal-cancel">Cancel</button>
+                <button class="btn-apply" id="modal-apply">Apply & Analyze</button>
+            </div>
+        </div>
+    </div>
+
     <script type="text/javascript" src="static/demo.js"></script>
 </body>
 </html>

@@ -45,6 +45,83 @@ var currentPhanVersion = '5.5.2';  // default
 var currentAstVersion = '1.1.2';  // default
 var shouldAutoAnalyze = false;
 
+// Phan plugin definitions and level mappings
+var allPlugins = [
+    'AlwaysReturnPlugin',
+    'DollarDollarPlugin',
+    'DuplicateArrayKeyPlugin',
+    'DuplicateExpressionPlugin',
+    'PregRegexCheckerPlugin',
+    'PrintfCheckerPlugin',
+    'SleepCheckerPlugin',
+    'UnreachableCodePlugin',
+    'UseReturnValuePlugin',
+    'EmptyStatementListPlugin',
+    'StrictComparisonPlugin',
+    'LoopVariableReusePlugin',
+    'InvalidVariableIssetPlugin',
+    'NonBoolBranchPlugin',
+    'NonBoolInLogicalArithPlugin',
+    'NumericalComparisonPlugin',
+    'RedundantAssignmentPlugin',
+    'UnknownElementTypePlugin'
+];
+
+var pluginLevels = {
+    1: [],
+    2: [
+        'AlwaysReturnPlugin',
+        'DollarDollarPlugin',
+        'DuplicateArrayKeyPlugin',
+        'DuplicateExpressionPlugin',
+        'PregRegexCheckerPlugin',
+        'PrintfCheckerPlugin',
+        'SleepCheckerPlugin',
+        'UnreachableCodePlugin',
+        'UseReturnValuePlugin',
+        'EmptyStatementListPlugin',
+        'StrictComparisonPlugin',
+        'LoopVariableReusePlugin'
+    ],
+    3: [
+        'AlwaysReturnPlugin',
+        'DollarDollarPlugin',
+        'DuplicateArrayKeyPlugin',
+        'DuplicateExpressionPlugin',
+        'PregRegexCheckerPlugin',
+        'PrintfCheckerPlugin',
+        'SleepCheckerPlugin',
+        'UnreachableCodePlugin',
+        'UseReturnValuePlugin',
+        'EmptyStatementListPlugin',
+        'InvalidVariableIssetPlugin',
+        'NonBoolBranchPlugin',
+        'NonBoolInLogicalArithPlugin',
+        'NumericalComparisonPlugin'
+    ],
+    4: [
+        'AlwaysReturnPlugin',
+        'DollarDollarPlugin',
+        'DuplicateArrayKeyPlugin',
+        'DuplicateExpressionPlugin',
+        'PregRegexCheckerPlugin',
+        'PrintfCheckerPlugin',
+        'SleepCheckerPlugin',
+        'UnreachableCodePlugin',
+        'UseReturnValuePlugin',
+        'EmptyStatementListPlugin',
+        'InvalidVariableIssetPlugin',
+        'NonBoolBranchPlugin',
+        'NonBoolInLogicalArithPlugin',
+        'NumericalComparisonPlugin',
+        'RedundantAssignmentPlugin',
+        'UnknownElementTypePlugin'
+    ],
+    5: allPlugins
+};
+
+var activePlugins = pluginLevels[2]; // Default to level 2
+
 function getOrDefault(value, defaultValue) {
     return value !== '' ? value : defaultValue;
 }
@@ -140,6 +217,10 @@ function doRunWithWrapper(analysisWrapper, code, outputIsHTML, defaultText) {
     // Replace phan phar path placeholder
     var phanPharName = 'phan-' + currentPhanVersion + '.phar';
     analysisCode = analysisCode.replace('$PHAN_PHAR_PATH', phanPharName);
+
+    // Replace active plugins placeholder
+    var pluginsCode = 'Config::setValue(\'plugins\', ' + JSON.stringify(activePlugins) + ');';
+    analysisCode = analysisCode.replace('$ACTIVE_PLUGINS_PLACEHOLDER', pluginsCode);
 
     doRun(analysisCode, outputIsHTML, defaultText);
 }
@@ -518,6 +599,138 @@ function loadPHPScript(callback) {
     document.head.appendChild(script);
 }
 
+// Plugin configuration modal functions
+function initPluginModal() {
+    var modal = document.getElementById('plugin-modal');
+    var configureBtn = document.getElementById('configure-plugins');
+    var closeBtn = document.getElementById('modal-close');
+    var cancelBtn = document.getElementById('modal-cancel');
+    var applyBtn = document.getElementById('modal-apply');
+    var pluginList = document.getElementById('plugin-list');
+    var levelBtns = document.querySelectorAll('.level-btn');
+
+    // Populate plugin list
+    allPlugins.forEach(function(plugin) {
+        var item = document.createElement('div');
+        item.className = 'plugin-item';
+
+        var checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = 'plugin-' + plugin;
+        checkbox.value = plugin;
+        checkbox.checked = activePlugins.indexOf(plugin) !== -1;
+
+        var label = document.createElement('label');
+        label.htmlFor = 'plugin-' + plugin;
+        label.textContent = plugin;
+
+        item.appendChild(checkbox);
+        item.appendChild(label);
+        pluginList.appendChild(item);
+    });
+
+    // Open modal
+    configureBtn.addEventListener('click', function() {
+        modal.classList.add('show');
+
+        // Update checkboxes to reflect current state
+        allPlugins.forEach(function(plugin) {
+            var checkbox = document.getElementById('plugin-' + plugin);
+            checkbox.checked = activePlugins.indexOf(plugin) !== -1;
+        });
+
+        // Update level button active state
+        updateLevelButtonState();
+    });
+
+    // Close modal
+    function closeModal() {
+        modal.classList.remove('show');
+    }
+
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+
+    // Close on background click
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
+
+    // Level button clicks
+    levelBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var level = parseInt(this.getAttribute('data-level'));
+            var levelPlugins = pluginLevels[level];
+
+            // Update all checkboxes
+            allPlugins.forEach(function(plugin) {
+                var checkbox = document.getElementById('plugin-' + plugin);
+                checkbox.checked = levelPlugins.indexOf(plugin) !== -1;
+            });
+
+            updateLevelButtonState();
+        });
+    });
+
+    // Update level button active state based on current selection
+    function updateLevelButtonState() {
+        var checkedPlugins = [];
+        allPlugins.forEach(function(plugin) {
+            var checkbox = document.getElementById('plugin-' + plugin);
+            if (checkbox.checked) {
+                checkedPlugins.push(plugin);
+            }
+        });
+
+        // Check if current selection matches any level
+        var matchingLevel = null;
+        for (var level in pluginLevels) {
+            var levelPlugins = pluginLevels[level];
+            if (levelPlugins.length === checkedPlugins.length &&
+                levelPlugins.every(function(p) { return checkedPlugins.indexOf(p) !== -1; })) {
+                matchingLevel = level;
+                break;
+            }
+        }
+
+        levelBtns.forEach(function(btn) {
+            var btnLevel = btn.getAttribute('data-level');
+            if (btnLevel === matchingLevel) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+
+    // Update on checkbox change
+    pluginList.addEventListener('change', function() {
+        updateLevelButtonState();
+    });
+
+    // Apply button
+    applyBtn.addEventListener('click', function() {
+        // Collect checked plugins
+        var newActivePlugins = [];
+        allPlugins.forEach(function(plugin) {
+            var checkbox = document.getElementById('plugin-' + plugin);
+            if (checkbox.checked) {
+                newActivePlugins.push(plugin);
+            }
+        });
+
+        activePlugins = newActivePlugins;
+        closeModal();
+
+        // Auto-analyze with new plugin configuration
+        if (isUsable && editor.getValue().trim()) {
+            analyze_button.click();
+        }
+    });
+}
+
 if (!window.WebAssembly) {
     showWebAssemblyError('Your browser does not support WebAssembly.');
 } else {
@@ -532,6 +745,7 @@ if (!window.WebAssembly) {
                 phpModule = newPHPModule
                 isUsable = true;
                 init();
+                initPluginModal();
             }).catch(function (error) {
                 showWebAssemblyError('Failed to initialize WebAssembly module: ' + error.message);
             });
