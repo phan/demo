@@ -177,13 +177,13 @@ function parseUrlParams() {
             currentAstVersion = astVer;
         }
     }
-    // Parse plugins bitfield
+    // Parse plugins bitfield (using BigInt for 43+ plugins)
     if (query.has('plugins')) {
         try {
-            var pluginBits = parseInt(query.get('plugins'), 10);
+            var pluginBits = BigInt(query.get('plugins'));
             var selectedPlugins = [];
             allPlugins.forEach(function(plugin, index) {
-                if (pluginBits & (1 << index)) {
+                if (pluginBits & (1n << BigInt(index))) {
                     selectedPlugins.push(plugin);
                 }
             });
@@ -571,11 +571,11 @@ function init() {
         url.searchParams.set('phan', currentPhanVersion);
         url.searchParams.set('ast', currentAstVersion);
 
-        // Encode active plugins as bitfield
-        var pluginBits = 0;
+        // Encode active plugins as bitfield (using BigInt for 43+ plugins)
+        var pluginBits = 0n;
         allPlugins.forEach(function(plugin, index) {
             if (activePlugins.indexOf(plugin) !== -1) {
-                pluginBits |= (1 << index);
+                pluginBits |= (1n << BigInt(index));
             }
         });
         url.searchParams.set('plugins', pluginBits.toString());
