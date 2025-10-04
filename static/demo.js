@@ -404,6 +404,11 @@ function init() {
     var phanVersionSelect = document.getElementById('phan-version');
     var astVersionSelect = document.getElementById('ast-version');
 
+    // Read initial values from dropdowns
+    currentPhpVersion = phpVersionSelect.value;
+    currentPhanVersion = phanVersionSelect.value;
+    currentAstVersion = astVersionSelect.value;
+
     // Function to enforce ast version constraints
     function enforceAstConstraints() {
         // PHP 8.4, 8.5, and Phan v6-dev all require ast 1.1.3
