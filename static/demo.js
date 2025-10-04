@@ -58,26 +58,51 @@ var currentPhanVersion = '5.5.2';  // default
 var currentAstVersion = '1.1.3';  // default (matches HTML)
 var shouldAutoAnalyze = false;
 
-// Phan plugin definitions and level mappings
+// Phan plugin definitions and level mappings (alphabetically sorted)
 var allPlugins = [
+    'AddNeverReturnTypePlugin',
     'AlwaysReturnPlugin',
+    'AsymmetricVisibilityPlugin',
+    'AvoidableGetterPlugin',
+    'ConstantVariablePlugin',
     'DollarDollarPlugin',
     'DuplicateArrayKeyPlugin',
+    'DuplicateConstantPlugin',
     'DuplicateExpressionPlugin',
-    'PregRegexCheckerPlugin',
-    'PrintfCheckerPlugin',
-    'SleepCheckerPlugin',
-    'UnreachableCodePlugin',
-    'UseReturnValuePlugin',
+    'EmptyMethodAndFunctionPlugin',
     'EmptyStatementListPlugin',
-    'StrictComparisonPlugin',
-    'LoopVariableReusePlugin',
+    'FFIAnalysisPlugin',
+    'HasPHPDocPlugin',
+    'InlineHTMLPlugin',
     'InvalidVariableIssetPlugin',
+    'InvokePHPNativeSyntaxCheckPlugin',
+    'LoopVariableReusePlugin',
+    'MoreSpecificElementTypePlugin',
+    'NoAssertPlugin',
     'NonBoolBranchPlugin',
     'NonBoolInLogicalArithPlugin',
     'NumericalComparisonPlugin',
+    'PHPDocInWrongCommentPlugin',
+    'PHPUnitAssertionPlugin',
+    'PHPUnitNotDeadCodePlugin',
+    'PossiblyStaticMethodPlugin',
+    'PregRegexCheckerPlugin',
+    'PrintfCheckerPlugin',
     'RedundantAssignmentPlugin',
-    'UnknownElementTypePlugin'
+    'RemoveDebugStatementPlugin',
+    'ShortArrayPlugin',
+    'SimplifyExpressionPlugin',
+    'SleepCheckerPlugin',
+    'StaticVariableMisusePlugin',
+    'StrictComparisonPlugin',
+    'StrictLiteralComparisonPlugin',
+    'SuspiciousParamOrderPlugin',
+    'UnknownClassElementAccessPlugin',
+    'UnknownElementTypePlugin',
+    'UnreachableCodePlugin',
+    'UnsafeCodePlugin',
+    'UnusedSuppressionPlugin',
+    'UseReturnValuePlugin'
 ];
 
 var pluginLevels = {
