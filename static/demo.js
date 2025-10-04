@@ -411,6 +411,8 @@ function init() {
 
     // Function to enforce ast version constraints
     function enforceAstConstraints() {
+        // Re-read current ast version from dropdown
+        currentAstVersion = astVersionSelect.value;
         // PHP 8.4, 8.5, and Phan v6-dev all require ast 1.1.3
         var requiresAst113 = (currentPhpVersion === '84' || currentPhpVersion === '85' || currentPhanVersion === 'v6-dev');
 
