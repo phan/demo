@@ -11,8 +11,8 @@ PHP_VERSIONS=("8.1.33" "8.2.29" "8.3.26" "8.4.13" "8.5.0RC1")
 AST_VERSIONS=("1.1.2" "1.1.3")
 
 # Phan versions - we'll build different combinations
-# Latest released v5
-PHAN_V5_RELEASED="5.5.1"
+# Released v5 versions
+PHAN_RELEASED_VERSIONS=("5.5.1" "5.5.2")
 # For v5 and v6 dev, we'll build from git branches
 PHAN_V5_DEV_BRANCH="master"
 PHAN_V6_DEV_BRANCH="master"  # Assuming v6 work will be in master or a v6 branch
@@ -337,8 +337,11 @@ echo "========================================"
 # Build or download Phan versions
 echo "Preparing Phan versions..."
 
-# Released v5
-PHAN_V5_PHAR=$(download_phan_release "$PHAN_V5_RELEASED")
+# Download all released versions
+declare -A PHAN_PHARS
+for version in "${PHAN_RELEASED_VERSIONS[@]}"; do
+    PHAN_PHARS[$version]=$(download_phan_release "$version")
+done
 
 # For now, skip building dev versions due to phar build complexity
 # These can be added later once the phar build process is debugged
@@ -350,7 +353,7 @@ PHAN_V5_PHAR=$(download_phan_release "$PHAN_V5_RELEASED")
 # PHAN_V6_DEV_PHAR=$(build_phan_from_git "$PHAN_V6_DEV_BRANCH" "v6-dev")
 
 echo "Note: Dev versions (v5-dev, v6-dev) are currently disabled due to phar build issues."
-echo "      Only stable release $PHAN_V5_RELEASED will be used for all PHP versions."
+echo "      Stable releases ${PHAN_RELEASED_VERSIONS[*]} will be built for all PHP versions."
 
 # Build all combinations
 # For efficiency, we can choose which combinations to build
@@ -367,8 +370,10 @@ for php_version in "${PHP_VERSIONS[@]}"; do
             continue
         fi
 
-        # Build each compatible PHP+ast version with released Phan v5
-        build_php_phan_ast_combo "$php_version" "$PHAN_V5_PHAR" "$PHAN_V5_RELEASED" "$ast_version"
+        # Build each compatible PHP+ast version with all released Phan versions
+        for phan_version in "${PHAN_RELEASED_VERSIONS[@]}"; do
+            build_php_phan_ast_combo "$php_version" "${PHAN_PHARS[$phan_version]}" "$phan_version" "$ast_version"
+        done
 
         # Dev versions disabled for now
         # build_php_phan_ast_combo "$php_version" "$PHAN_V5_DEV_PHAR" "v5-dev" "$ast_version"
