@@ -79,7 +79,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     COMMIT_MSG="Deploy multi-version support
 
 - PHP versions: 8.1.33, 8.2.29, 8.3.26, 8.4.13, 8.5.0RC1
-- Phan versions: 5.5.1, 5.5.2
+- Phan versions: 5.5.1, 5.5.2, v6-dev
 - php-ast versions: 1.1.2, 1.1.3
 - New modern UI
 - User-selectable PHP, Phan, and ast versions"
