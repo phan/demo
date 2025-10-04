@@ -29,21 +29,13 @@ if [ "$CURRENT_BRANCH" != "master" ] && [ "$CURRENT_BRANCH" != "main" ]; then
     fi
 fi
 
-# Check if we have uncommitted changes
+# Check if we have uncommitted changes and abort if so
 if ! git diff-index --quiet HEAD --; then
-    echo "Warning: You have uncommitted changes in the current branch."
-    read -p "Do you want to continue? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Deployment cancelled."
-        exit 1
-    fi
+    echo "Error: You have uncommitted changes in the current branch."
+    echo "Please commit or stash your changes before deploying."
+    git status --short
+    exit 1
 fi
-
-# Stash any uncommitted changes
-echo "Stashing any uncommitted changes..."
-git stash push -m "deploy-to-gh-pages stash"
-STASHED=$?
 
 # Checkout gh-pages
 echo "Checking out gh-pages branch..."
@@ -105,11 +97,5 @@ fi
 echo ""
 echo "Returning to $CURRENT_BRANCH..."
 git checkout $CURRENT_BRANCH
-
-# Restore stashed changes if any
-if [ $STASHED -eq 0 ]; then
-    echo "Restoring stashed changes..."
-    git stash pop
-fi
 
 echo "Done!"
