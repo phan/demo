@@ -235,6 +235,43 @@ var didInit = false;
 
 var buttons = [run_button, analyze_button];
 
+// Function to enforce ast version constraints (global so modal can use it)
+function enforceAstConstraints() {
+    var astVersionSelect = document.getElementById('ast-version');
+    if (!astVersionSelect) return;
+
+    // Re-read current ast version from dropdown
+    currentAstVersion = astVersionSelect.value;
+    console.log('enforceAstConstraints called:', {
+        currentPhpVersion: currentPhpVersion,
+        currentPhanVersion: currentPhanVersion,
+        currentAstVersion: currentAstVersion,
+        dropdownValue: astVersionSelect.value
+    });
+
+    // PHP 8.4, 8.5, and Phan v6-dev all require ast 1.1.3
+    var requiresAst113 = (currentPhpVersion === '84' || currentPhpVersion === '85' || currentPhanVersion === 'v6-dev');
+
+    if (requiresAst113) {
+        console.log('Requires ast 1.1.3, current is:', currentAstVersion);
+        if (currentAstVersion === '1.1.2') {
+            console.log('Forcing ast version to 1.1.3');
+            currentAstVersion = '1.1.3';
+            astVersionSelect.value = '1.1.3';
+        }
+        // Disable ast 1.1.2 option
+        Array.from(astVersionSelect.options).forEach(function(option) {
+            option.disabled = (option.value === '1.1.2');
+        });
+    } else {
+        // Enable all ast options
+        Array.from(astVersionSelect.options).forEach(function(option) {
+            option.disabled = false;
+        });
+    }
+    console.log('After enforcement, currentAstVersion:', currentAstVersion);
+}
+
 function enableButtons() {
     run_button.textContent = "Run"
     analyze_button.textContent = "Analyze"
@@ -414,40 +451,6 @@ function init() {
     currentPhpVersion = phpVersionSelect.value;
     currentPhanVersion = phanVersionSelect.value;
     currentAstVersion = astVersionSelect.value;
-
-    // Function to enforce ast version constraints
-    function enforceAstConstraints() {
-        // Re-read current ast version from dropdown
-        currentAstVersion = astVersionSelect.value;
-        console.log('enforceAstConstraints called:', {
-            currentPhpVersion: currentPhpVersion,
-            currentPhanVersion: currentPhanVersion,
-            currentAstVersion: currentAstVersion,
-            dropdownValue: astVersionSelect.value
-        });
-
-        // PHP 8.4, 8.5, and Phan v6-dev all require ast 1.1.3
-        var requiresAst113 = (currentPhpVersion === '84' || currentPhpVersion === '85' || currentPhanVersion === 'v6-dev');
-
-        if (requiresAst113) {
-            console.log('Requires ast 1.1.3, current is:', currentAstVersion);
-            if (currentAstVersion === '1.1.2') {
-                console.log('Forcing ast version to 1.1.3');
-                currentAstVersion = '1.1.3';
-                astVersionSelect.value = '1.1.3';
-            }
-            // Disable ast 1.1.2 option
-            Array.from(astVersionSelect.options).forEach(function(option) {
-                option.disabled = (option.value === '1.1.2');
-            });
-        } else {
-            // Enable all ast options
-            Array.from(astVersionSelect.options).forEach(function(option) {
-                option.disabled = false;
-            });
-        }
-        console.log('After enforcement, currentAstVersion:', currentAstVersion);
-    }
 
     phpVersionSelect.addEventListener('change', function() {
         currentPhpVersion = this.value;
