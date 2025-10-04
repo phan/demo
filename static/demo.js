@@ -205,6 +205,7 @@ function getVersionPath() {
 
 function updatePhanVersionInfo() {
     var versionInfoDiv = document.getElementById('phan-version-info');
+    var phanVersionSelect = document.getElementById('phan-version');
 
     // Only show info for dev versions
     if (currentPhanVersion === 'v6-dev') {
@@ -223,7 +224,15 @@ function updatePhanVersionInfo() {
                     // Extract just the commit hash and date part
                     var match = text.match(/commit ([a-f0-9]+) \(([^)]+)\)/);
                     if (match) {
-                        versionInfoDiv.textContent = 'commit ' + match[1] + ' (' + match[2] + ')';
+                        var commitHash = match[1];
+                        versionInfoDiv.textContent = 'commit ' + commitHash + ' (' + match[2] + ')';
+                        // Update dropdown text to show commit hash
+                        var v6Option = Array.from(phanVersionSelect.options).find(function(opt) {
+                            return opt.value === 'v6-dev';
+                        });
+                        if (v6Option) {
+                            v6Option.textContent = 'v6 dev (' + commitHash + ')';
+                        }
                     } else {
                         versionInfoDiv.textContent = text.trim();
                     }
