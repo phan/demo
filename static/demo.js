@@ -59,9 +59,11 @@ var currentAstVersion = '1.1.3';  // default (matches HTML)
 var shouldAutoAnalyze = false;
 
 // Phan plugin definitions and level mappings (alphabetically sorted)
-// Note: Some plugins are excluded because they require external tools not available in WebAssembly:
+// Note: Some plugins are excluded because they require external dependencies not available in WebAssembly:
 // - InvokePHPNativeSyntaxCheckPlugin (requires php binary)
 // - FFIAnalysisPlugin (requires FFI which may not work in WASM)
+// - PHPUnitAssertionPlugin (requires PHPUnit framework)
+// - PHPUnitNotDeadCodePlugin (requires PHPUnit framework)
 var allPlugins = [
     'AddNeverReturnTypePlugin',
     'AlwaysReturnPlugin',
@@ -84,8 +86,6 @@ var allPlugins = [
     'NonBoolInLogicalArithPlugin',
     'NumericalComparisonPlugin',
     'PHPDocInWrongCommentPlugin',
-    'PHPUnitAssertionPlugin',
-    'PHPUnitNotDeadCodePlugin',
     'PossiblyStaticMethodPlugin',
     'PregRegexCheckerPlugin',
     'PrintfCheckerPlugin',
