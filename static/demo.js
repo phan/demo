@@ -59,6 +59,9 @@ var currentAstVersion = '1.1.3';  // default (matches HTML)
 var shouldAutoAnalyze = false;
 
 // Phan plugin definitions and level mappings (alphabetically sorted)
+// Note: Some plugins are excluded because they require external tools not available in WebAssembly:
+// - InvokePHPNativeSyntaxCheckPlugin (requires php binary)
+// - FFIAnalysisPlugin (requires FFI which may not work in WASM)
 var allPlugins = [
     'AddNeverReturnTypePlugin',
     'AlwaysReturnPlugin',
@@ -71,11 +74,9 @@ var allPlugins = [
     'DuplicateExpressionPlugin',
     'EmptyMethodAndFunctionPlugin',
     'EmptyStatementListPlugin',
-    'FFIAnalysisPlugin',
     'HasPHPDocPlugin',
     'InlineHTMLPlugin',
     'InvalidVariableIssetPlugin',
-    'InvokePHPNativeSyntaxCheckPlugin',
     'LoopVariableReusePlugin',
     'MoreSpecificElementTypePlugin',
     'NoAssertPlugin',
