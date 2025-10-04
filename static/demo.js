@@ -749,10 +749,21 @@ function initPluginModal() {
         console.log('Active plugins set to:', activePlugins);
         closeModal();
 
-        // Auto-analyze with new plugin configuration
-        console.log('About to trigger analyze, currentAstVersion:', currentAstVersion);
-        if (isUsable && editor.getValue().trim()) {
-            analyze_button.click();
+        // Make sure ast constraints are enforced (this will update currentAstVersion if needed)
+        var oldAstVersion = currentAstVersion;
+        enforceAstConstraints();
+
+        // If ast version changed due to constraints, reload the module
+        if (oldAstVersion !== currentAstVersion) {
+            console.log('ast version changed from', oldAstVersion, 'to', currentAstVersion, '- reloading module');
+            shouldAutoAnalyze = true;
+            reloadPHPModule();
+        } else {
+            // Auto-analyze with new plugin configuration
+            console.log('About to trigger analyze, currentAstVersion:', currentAstVersion);
+            if (isUsable && editor.getValue().trim()) {
+                analyze_button.click();
+            }
         }
     });
 }
