@@ -53,9 +53,9 @@ git checkout gh-pages
 echo "Pulling latest gh-pages..."
 git pull origin gh-pages
 
-# Copy web files from master (builds/ persists since it's in .gitignore)
+# Copy web files from master (builds/ persists and is tracked on gh-pages)
 echo "Copying web files..."
-git checkout $CURRENT_BRANCH -- index.html static/demo.js static/demo.css favicon.ico .gitignore
+git checkout $CURRENT_BRANCH -- index.html static/demo.js static/demo.css favicon.ico
 
 # Show status
 echo ""
@@ -68,9 +68,7 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     # Commit
     echo "Committing changes..."
-    git add index.html static/demo.js static/demo.css favicon.ico .gitignore
-    # Force add builds/ since it's in .gitignore but we want it on gh-pages
-    git add -f builds/
+    git add index.html static/demo.js static/demo.css favicon.ico builds/
 
     # Create commit message with version info
     COMMIT_MSG="Deploy multi-version support
