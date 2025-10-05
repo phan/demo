@@ -37,6 +37,13 @@ if ! git diff-index --quiet HEAD --; then
     exit 1
 fi
 
+# Save builds/ and metadata files (they're untracked on master)
+TEMP_DIR=$(mktemp -d)
+echo "Saving builds/ directory to temp..."
+cp -r builds/ "$TEMP_DIR/" 2>/dev/null || true
+mv *.phar.info "$TEMP_DIR/" 2>/dev/null || true
+mv *.phar.commit "$TEMP_DIR/" 2>/dev/null || true
+
 # Checkout gh-pages
 echo "Checking out gh-pages branch..."
 git checkout gh-pages
@@ -45,12 +52,19 @@ git checkout gh-pages
 echo "Pulling latest gh-pages..."
 git pull origin gh-pages
 
-# Copy web files from master (builds/ persists and is tracked on gh-pages)
+# Copy web files from master
 echo "Copying web files..."
 git checkout $CURRENT_BRANCH -- index.html static/demo.js static/demo.css favicon.ico
-# Also copy any phan metadata files (*.phar.info, *.phar.commit)
-cp -f *.phar.info . 2>/dev/null || true
-cp -f *.phar.commit . 2>/dev/null || true
+
+# Restore builds/ and metadata files from temp
+echo "Restoring builds/ directory..."
+if [ -d "$TEMP_DIR/builds" ]; then
+    rm -rf builds/
+    cp -r "$TEMP_DIR/builds" .
+fi
+cp "$TEMP_DIR"/*.phar.info . 2>/dev/null || true
+cp "$TEMP_DIR"/*.phar.commit . 2>/dev/null || true
+rm -rf "$TEMP_DIR"
 
 # Show status
 echo ""
