@@ -156,7 +156,7 @@ h1 {
 }
 
 .playground-editor {
-    flex: 1;
+    flex: 0.67;
     position: relative;
     border: 3px solid #dee2e6;
     border-radius: 8px;
@@ -177,6 +177,7 @@ h1 {
     background: #f8f9fa;
     color: #212529;
     padding: 1.5em;
+    margin: 0;
     border: 3px solid #dee2e6;
     border-radius: 8px;
     overflow-y: auto;
@@ -453,4 +454,228 @@ h1 {
     border-color: #495057;
     color: #212529;
     background: #f8f9fa;
+}
+
+/* AST button styling */
+#ast {
+    height: 3.2em;
+    padding: 0 2em;
+    font-size: 1em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: white;
+    white-space: nowrap;
+    background: #6f42c1;
+    box-shadow: 0 2px 6px rgba(111, 66, 193, 0.25);
+}
+
+#ast:hover:not(.disabled) {
+    background: #5a32a3;
+    box-shadow: 0 3px 10px rgba(111, 66, 193, 0.35);
+    transform: translateY(-1px);
+}
+
+#ast.disabled {
+    background: #adb5bd;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* AST visualization in output area */
+#output.ast-view {
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+#ast-canvas {
+    width: 100%;
+    height: 100%;
+    background: #f8f9fa;
+    position: relative;
+    overflow: hidden;
+}
+
+/* AST Zoom Controls */
+#ast-zoom-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    z-index: 100;
+}
+
+#ast-zoom-controls button {
+    width: 32px;
+    height: 32px;
+    border: 2px solid #dee2e6;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    color: #495057;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#ast-zoom-controls button:hover {
+    background: #f8f9fa;
+    border-color: #0d6efd;
+    color: #0d6efd;
+}
+
+#ast-zoom-controls button:active {
+    transform: scale(0.95);
+}
+
+/* JointJS AST node styling */
+.joint-element .ast-node-rect {
+    stroke-width: 1.5;
+}
+
+/* AST node colors by category */
+.ast-node-statement {
+    fill: #cfe2ff;
+    stroke: #0d6efd;
+}
+
+.ast-node-expression {
+    fill: #d1e7dd;
+    stroke: #198754;
+}
+
+.ast-node-literal {
+    fill: #fff3cd;
+    stroke: #ffc107;
+}
+
+.ast-node-declaration {
+    fill: #e7d6f8;
+    stroke: #6f42c1;
+}
+
+.ast-node-name {
+    fill: #f8d7da;
+    stroke: #dc3545;
+}
+
+.ast-node-other {
+    fill: #e9ecef;
+    stroke: #6c757d;
+}
+
+/* AST node highlighting - use combined class selector (no space between classes) */
+.ast-node-rect.ast-node-highlighted {
+    stroke-width: 4 !important;
+    filter: drop-shadow(0 0 10px rgba(255, 193, 7, 0.8)) !important;
+}
+
+.ast-node-statement.ast-node-highlighted {
+    fill: #fff3cd !important;
+    stroke: #ffc107 !important;
+}
+
+.ast-node-expression.ast-node-highlighted {
+    fill: #fff3cd !important;
+    stroke: #ffc107 !important;
+}
+
+.ast-node-literal.ast-node-highlighted {
+    fill: #fff3cd !important;
+    stroke: #ffc107 !important;
+}
+
+.ast-node-declaration.ast-node-highlighted {
+    fill: #fff3cd !important;
+    stroke: #ffc107 !important;
+}
+
+.ast-node-name.ast-node-highlighted {
+    fill: #fff3cd !important;
+    stroke: #ffc107 !important;
+}
+
+.ast-node-other.ast-node-highlighted {
+    fill: #fff3cd !important;
+    stroke: #ffc107 !important;
+}
+
+/* AST node text */
+.joint-element text {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px;
+    fill: #212529;
+    pointer-events: none;
+}
+
+.ast-node-kind {
+    font-weight: 700;
+    font-size: 11px;
+}
+
+.ast-node-details {
+    font-size: 9px;
+    fill: #6c757d;
+}
+
+/* Link styling */
+.joint-link .connection {
+    stroke: #dee2e6;
+    stroke-width: 1;
+}
+
+.joint-link .marker-target {
+    fill: #dee2e6;
+}
+
+/* Edge label styling */
+.edge-label {
+    background: white;
+    padding: 2px 4px;
+    border-radius: 3px;
+    border: 1px solid #dee2e6;
+}
+
+/* Tooltip styling */
+.ast-tooltip {
+    position: absolute;
+    background: rgba(33, 37, 41, 0.95);
+    color: white;
+    padding: 0.75em 1em;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', 'Courier New', monospace;
+    pointer-events: none;
+    z-index: 10000;
+    max-width: 400px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    line-height: 1.5;
+}
+
+.ast-tooltip .tooltip-kind {
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 0.5em;
+    color: #9ec5fe;
+}
+
+.ast-tooltip .tooltip-property {
+    margin: 0.25em 0;
+}
+
+.ast-tooltip .tooltip-label {
+    color: #adb5bd;
+    font-weight: 600;
+}
+
+.ast-tooltip .tooltip-value {
+    color: #f8f9fa;
 }

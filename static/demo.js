@@ -5,7 +5,7 @@ var editor = ace.edit("editor");
 editor.setTheme("ace/theme/github");
 editor.session.setMode("ace/mode/php");
 editor.setShowPrintMargin(false);
-editor.setFontSize(14);
+editor.setFontSize(18);
 
 var default_code = "<?php\n" + document.getElementById('features_example').innerText;
 
@@ -30,9 +30,9 @@ if (query.has('c')) {
 }
 
 if (initial_code && initial_code != default_code) {
-    editor.setValue(initial_code);
+    editor.setValue(initial_code, -1);
 } else {
-    editor.setValue(default_code);
+    editor.setValue(default_code, -1);
     // Pre-render the output of the demo to show the types of issues Phan is capable of detecting.
     output_area.innerHTML =
         '<p><span class="phan_file">input</span>:<span class="phan_line">6</span>: <span class="phan_issuetype_critical">PhanUndeclaredClassMethod</span> Call to method <span class="phan_method">__construct</span> from undeclared class <span class="phan_class">\\my_class</span> (<span class="phan_suggestion">Did you mean class \\MyClass</span>)</p>' +
@@ -308,7 +308,8 @@ function doRunWithWrapper(analysisWrapper, code, outputIsHTML, defaultText) {
 
 var didInit = false;
 
-var buttons = [run_button, analyze_button];
+var ast_button = document.getElementById('ast');
+var buttons = [run_button, analyze_button, ast_button];
 
 // Function to enforce ast version constraints (global so modal can use it)
 function enforceAstConstraints() {
@@ -350,6 +351,7 @@ function enforceAstConstraints() {
 function enableButtons() {
     run_button.textContent = "Run"
     analyze_button.textContent = "Analyze"
+    ast_button.textContent = "AST"
     for (var button of buttons) {
         button.disabled = false
         button.classList.remove('disabled')
@@ -610,6 +612,13 @@ function init() {
         }
         isUsable = false;
         output_area.innerText = '';
+        output_area.classList.remove('ast-view');
+        // Remove AST cursor tracking if active
+        editor.selection.removeListener('changeCursor', highlightAstNodesFromEditor);
+        if (currentEditorHighlightFromAst) {
+            editor.session.removeMarker(currentEditorHighlightFromAst);
+            currentEditorHighlightFromAst = null;
+        }
         run_button.textContent = "Running"
         disableButtons();
         var code = editor.getValue();
@@ -625,6 +634,13 @@ function init() {
         }
         isUsable = false;
         output_area.innerText = '';
+        output_area.classList.remove('ast-view');
+        // Remove AST cursor tracking if active
+        editor.selection.removeListener('changeCursor', highlightAstNodesFromEditor);
+        if (currentEditorHighlightFromAst) {
+            editor.session.removeMarker(currentEditorHighlightFromAst);
+            currentEditorHighlightFromAst = null;
+        }
         analyze_button.textContent = "Analyzing"
         disableButtons();
         var code = editor.getValue();
@@ -974,6 +990,565 @@ function initPluginModal() {
     });
 }
 
+// AST Visualization
+var currentAstData = null;
+var astGraph = null;
+var astPaper = null;
+var astNodeMap = new Map(); // Map line numbers to AST nodes/cells
+var astTooltip = null; // Current tooltip element
+
+// Clear AST tooltip
+function clearAstTooltip() {
+    if (astTooltip) {
+        astTooltip.remove();
+        astTooltip = null;
+    }
+}
+
+// Determine node category for coloring
+function getNodeCategory(kind) {
+    // Statements
+    if (kind.includes('STMT') || kind === 'AST_IF' || kind === 'AST_WHILE' ||
+        kind === 'AST_FOR' || kind === 'AST_FOREACH' || kind === 'AST_SWITCH' ||
+        kind === 'AST_CASE' || kind === 'AST_TRY' || kind === 'AST_CATCH' ||
+        kind === 'AST_RETURN' || kind === 'AST_BREAK' || kind === 'AST_CONTINUE' ||
+        kind === 'AST_THROW' || kind === 'AST_ECHO' || kind === 'AST_PRINT' ||
+        kind === 'AST_UNSET' || kind === 'AST_DECLARE') {
+        return 'statement';
+    }
+
+    // Expressions
+    if (kind.includes('ASSIGN') || kind.includes('BINARY_OP') || kind.includes('UNARY_OP') ||
+        kind === 'AST_CALL' || kind === 'AST_METHOD_CALL' || kind === 'AST_STATIC_CALL' ||
+        kind === 'AST_NEW' || kind === 'AST_VAR' || kind === 'AST_DIM' ||
+        kind === 'AST_PROP' || kind === 'AST_STATIC_PROP' || kind === 'AST_CONDITIONAL' ||
+        kind === 'AST_INSTANCEOF' || kind === 'AST_ISSET' || kind === 'AST_EMPTY' ||
+        kind === 'AST_CLONE' || kind === 'AST_CAST' || kind === 'AST_ARRAY' ||
+        kind === 'AST_ARRAY_ELEM' || kind === 'AST_CLOSURE' || kind === 'AST_ARROW_FUNC' ||
+        kind === 'AST_MATCH' || kind === 'AST_MATCH_ARM') {
+        return 'expression';
+    }
+
+    // Declarations
+    if (kind === 'AST_FUNC_DECL' || kind === 'AST_METHOD' || kind === 'AST_CLASS' ||
+        kind === 'AST_PARAM' || kind === 'AST_PARAM_LIST' || kind === 'AST_PROP_DECL' ||
+        kind === 'AST_CONST_DECL' || kind === 'AST_CONST_ELEM' || kind === 'AST_USE' ||
+        kind === 'AST_USE_TRAIT' || kind === 'AST_TRAIT_ALIAS' || kind === 'AST_NAMESPACE') {
+        return 'declaration';
+    }
+
+    // Literals
+    if (kind.includes('AST_CONST') || kind === 'AST_MAGIC_CONST' ||
+        kind === 'AST_CLASS_CONST') {
+        return 'literal';
+    }
+
+    // Names
+    if (kind === 'AST_NAME' || kind === 'AST_TYPE') {
+        return 'name';
+    }
+
+    return 'other';
+}
+
+// Build JointJS graph from AST - let dagre handle positioning
+function buildAstGraph(astNode, parent, graph, childKey) {
+    if (!astNode || typeof astNode !== 'object') {
+        return;
+    }
+
+    var kind = astNode.kind || 'Unknown';
+    var category = getNodeCategory(kind);
+
+    // Create compact node label
+    var label = kind.replace('AST_', '');
+
+    // Only show line number in label to keep it compact
+    if (astNode.lineno) {
+        label += '\nL:' + astNode.lineno;
+    }
+
+    // Create JointJS element - let dagre position it
+    var cell = new joint.shapes.standard.Rectangle({
+        size: { width: 90, height: 35 },
+        attrs: {
+            body: {
+                class: 'ast-node-rect ast-node-' + category,
+                cursor: 'pointer',
+                rx: 4,
+                ry: 4
+            },
+            label: {
+                text: label,
+                fill: '#212529',
+                fontSize: 10,
+                fontWeight: 'bold'
+            }
+        }
+    });
+
+    // Store metadata
+    cell.astData = astNode;
+    cell.astCategory = category;
+
+    // Map line numbers to cells for highlighting
+    if (astNode.lineno) {
+        if (!astNodeMap.has(astNode.lineno)) {
+            astNodeMap.set(astNode.lineno, []);
+        }
+        astNodeMap.get(astNode.lineno).push(cell);
+    }
+
+    graph.addCell(cell);
+
+    // Create link to parent with edge label
+    if (parent) {
+        var linkAttrs = {
+            line: {
+                stroke: '#dee2e6',
+                strokeWidth: 1,
+                targetMarker: {
+                    type: 'path',
+                    d: 'M 6 -3 0 0 6 3 z',
+                    fill: '#dee2e6'
+                }
+            }
+        };
+
+        // Add edge label if childKey is provided
+        if (childKey) {
+            linkAttrs.label = {
+                text: childKey,
+                fill: '#6c757d',
+                fontSize: 9,
+                fontWeight: '600',
+                class: 'edge-label'
+            };
+        }
+
+        var link = new joint.shapes.standard.Link({
+            source: { id: parent.id },
+            target: { id: cell.id },
+            router: {
+                name: 'manhattan',
+                args: {
+                    padding: 10
+                }
+            },
+            connector: { name: 'rounded' },
+            attrs: linkAttrs
+        });
+        graph.addCell(link);
+    }
+
+    // Process children recursively
+    if (astNode.children) {
+        var childKeys = Object.keys(astNode.children);
+        for (var i = 0; i < childKeys.length; i++) {
+            var key = childKeys[i];
+            var child = astNode.children[key];
+
+            if (child && typeof child === 'object' && child.kind) {
+                buildAstGraph(child, cell, graph, key);
+            }
+        }
+    }
+}
+
+// Render AST visualization
+function renderAstVisualization(astData) {
+    currentAstData = astData;
+    astNodeMap.clear();
+
+    // Clear output area and add canvas with zoom controls
+    output_area.innerHTML = '<div id="ast-canvas"></div><div id="ast-zoom-controls"><button id="zoom-in" title="Zoom In">+</button><button id="zoom-out" title="Zoom Out">-</button><button id="zoom-fit" title="Zoom to Fit">⊡</button></div>';
+    output_area.classList.add('ast-view');
+
+    var canvas = document.getElementById('ast-canvas');
+
+    // Create JointJS graph and paper
+    astGraph = new joint.dia.Graph();
+
+    // Calculate paper dimensions based on content
+    var paperWidth = Math.max(output_area.clientWidth, 1000);
+    var paperHeight = Math.max(output_area.clientHeight, 2000);
+
+    astPaper = new joint.dia.Paper({
+        el: canvas,
+        model: astGraph,
+        width: paperWidth,
+        height: paperHeight,
+        gridSize: 10,
+        interactive: {
+            elementMove: false  // Disable dragging nodes
+        },
+        background: {
+            color: '#f8f9fa'
+        }
+    });
+
+    // Build graph from AST
+    if (astData.ast) {
+        buildAstGraph(astData.ast, null, astGraph);
+    }
+
+    // Auto-layout using dagre - tree layout left-to-right
+    if (typeof joint.layout !== 'undefined' && joint.layout.DirectedGraph) {
+        joint.layout.DirectedGraph.layout(astGraph, {
+            setLinkVertices: false,
+            rankDir: 'LR',
+            align: 'UL',
+            rankSep: 100,
+            nodeSep: 30,
+            edgeSep: 10,
+            marginX: 30,
+            marginY: 30
+        });
+    }
+
+    // Resize paper to fit content
+    var bbox = astGraph.getBBox();
+    if (bbox) {
+        astPaper.setDimensions(bbox.width + 100, bbox.height + 100);
+    }
+
+    // Set up zoom and pan controls
+    setupZoomAndPan(canvas);
+
+    // Set up tooltips and click handlers
+    setupAstInteractions(canvas);
+}
+
+// Set up zoom and pan controls for AST visualization
+function setupZoomAndPan(canvas) {
+    var currentScale = 1;
+    var minScale = 0.1;
+    var maxScale = 3;
+    var scaleStep = 0.1;
+
+    var isPanning = false;
+    var startPoint = { x: 0, y: 0 };
+    var currentTranslate = { x: 0, y: 0 };
+
+    // Zoom function
+    function zoom(scale, centerX, centerY) {
+        var oldScale = currentScale;
+        currentScale = Math.max(minScale, Math.min(maxScale, scale));
+
+        if (centerX !== undefined && centerY !== undefined) {
+            // Zoom towards the mouse position
+            var dx = centerX - (centerX - currentTranslate.x) * (currentScale / oldScale);
+            var dy = centerY - (centerY - currentTranslate.y) * (currentScale / oldScale);
+            currentTranslate.x = dx;
+            currentTranslate.y = dy;
+        }
+
+        astPaper.scale(currentScale, currentScale);
+        astPaper.translate(currentTranslate.x, currentTranslate.y);
+
+        // Clear tooltip when zooming
+        clearAstTooltip();
+    }
+
+    // Zoom to fit - using JointJS built-in method
+    function zoomToFit() {
+        astPaper.scaleContentToFit({
+            padding: 20,
+            minScale: 0.1,
+            maxScale: 2.0,
+            scaleGrid: 0.05,
+            useModelGeometry: true
+        });
+
+        // Get the current transformation to track it
+        var scale = astPaper.scale();
+        currentScale = scale.sx;
+        var translate = astPaper.translate();
+        currentTranslate.x = translate.tx;
+        currentTranslate.y = translate.ty;
+    }
+
+    // Mouse wheel zoom
+    canvas.addEventListener('wheel', function(e) {
+        e.preventDefault();
+
+        var delta = e.deltaY > 0 ? -scaleStep : scaleStep;
+        var rect = canvas.getBoundingClientRect();
+        var mouseX = e.clientX - rect.left;
+        var mouseY = e.clientY - rect.top;
+
+        zoom(currentScale + delta, mouseX, mouseY);
+    }, { passive: false });
+
+    // Panning - only on blank areas
+    astPaper.on('blank:pointerdown', function(evt, x, y) {
+        isPanning = true;
+        startPoint = { x: evt.clientX, y: evt.clientY };
+        canvas.style.cursor = 'grabbing';
+    });
+
+    canvas.addEventListener('mousemove', function(evt) {
+        if (!isPanning) return;
+
+        var dx = evt.clientX - startPoint.x;
+        var dy = evt.clientY - startPoint.y;
+
+        currentTranslate.x += dx;
+        currentTranslate.y += dy;
+
+        astPaper.translate(currentTranslate.x, currentTranslate.y);
+
+        startPoint = { x: evt.clientX, y: evt.clientY };
+
+        // Clear tooltip when panning
+        clearAstTooltip();
+    });
+
+    canvas.addEventListener('mouseup', function() {
+        if (isPanning) {
+            isPanning = false;
+            canvas.style.cursor = 'default';
+        }
+    });
+
+    canvas.addEventListener('mouseleave', function() {
+        if (isPanning) {
+            isPanning = false;
+            canvas.style.cursor = 'default';
+        }
+    });
+
+    // Zoom buttons
+    document.getElementById('zoom-in').addEventListener('click', function() {
+        var rect = canvas.getBoundingClientRect();
+        zoom(currentScale + scaleStep, rect.width / 2, rect.height / 2);
+    });
+
+    document.getElementById('zoom-out').addEventListener('click', function() {
+        var rect = canvas.getBoundingClientRect();
+        zoom(currentScale - scaleStep, rect.width / 2, rect.height / 2);
+    });
+
+    document.getElementById('zoom-fit').addEventListener('click', function() {
+        zoomToFit();
+    });
+
+    // Initial zoom to fit
+    setTimeout(zoomToFit, 100);
+}
+
+// Set up AST node interactions (tooltips, highlighting)
+function setupAstInteractions(canvas) {
+    // Hover for tooltips
+    astPaper.on('element:mouseenter', function(cellView) {
+        var cell = cellView.model;
+        var astData = cell.astData;
+
+        if (!astData) return;
+
+        // Clear any existing tooltip first
+        clearAstTooltip();
+
+        // Create tooltip
+        astTooltip = document.createElement('div');
+        astTooltip.className = 'ast-tooltip';
+
+        var html = '<div class="tooltip-kind">' + (astData.kind || 'Unknown') + '</div>';
+
+        if (astData.lineno) {
+            html += '<div class="tooltip-property"><span class="tooltip-label">Line:</span> <span class="tooltip-value">' + astData.lineno;
+            if (astData.endLineno && astData.endLineno !== astData.lineno) {
+                html += '-' + astData.endLineno;
+            }
+            html += '</span></div>';
+        }
+
+        if (astData.flags !== undefined) {
+            html += '<div class="tooltip-property"><span class="tooltip-label">Flags:</span> <span class="tooltip-value">' +
+                    (astData.flags_formatted || astData.flags) + '</span></div>';
+        }
+
+        if (astData.children) {
+            var childCount = Object.keys(astData.children).length;
+            html += '<div class="tooltip-property"><span class="tooltip-label">Children:</span> <span class="tooltip-value">' +
+                    childCount + '</span></div>';
+        }
+
+        astTooltip.innerHTML = html;
+        document.body.appendChild(astTooltip);
+
+        // Position tooltip relative to viewport using actual element position
+        var elementRect = cellView.el.getBoundingClientRect();
+
+        astTooltip.style.left = (elementRect.right + 10) + 'px';
+        astTooltip.style.top = elementRect.top + 'px';
+    });
+
+    astPaper.on('element:mouseleave', function() {
+        clearAstTooltip();
+    });
+
+    // Clear tooltip when hovering over blank area
+    astPaper.on('blank:mouseenter', function() {
+        clearAstTooltip();
+    });
+
+    // Clear tooltip on any paper interaction
+    astPaper.on('blank:pointerdown', function() {
+        clearAstTooltip();
+    });
+
+    // Clear tooltip when scrolling
+    canvas.addEventListener('scroll', function() {
+        clearAstTooltip();
+    });
+
+    // Clear tooltip when mouse leaves the canvas entirely
+    canvas.addEventListener('mouseleave', function() {
+        clearAstTooltip();
+    });
+
+    // Click to highlight in editor
+    astPaper.on('element:pointerclick', function(cellView, evt) {
+        var cell = cellView.model;
+        var astData = cell.astData;
+
+        // Clear tooltip on any click
+        clearAstTooltip();
+
+        // Highlight in editor
+        if (astData && astData.lineno) {
+            highlightEditorLineFromAst(astData.lineno, astData.endLineno);
+        }
+    });
+}
+
+// Highlight editor line from AST node click
+var currentEditorHighlightFromAst = null;
+
+function highlightEditorLineFromAst(startLine, endLine) {
+    // Remove previous highlight
+    if (currentEditorHighlightFromAst) {
+        editor.session.removeMarker(currentEditorHighlightFromAst);
+    }
+
+    // Add new highlight
+    if (startLine) {
+        var Range = ace.require('ace/range').Range;
+        var end = endLine || startLine;
+        currentEditorHighlightFromAst = editor.session.addMarker(
+            new Range(startLine - 1, 0, end - 1, 1000),
+            'ace-highlight-line',
+            'fullLine'
+        );
+
+        // Scroll to line
+        editor.scrollToLine(startLine - 1, true, true, function() {});
+        editor.gotoLine(startLine, 0, true);
+    }
+}
+
+// Highlight AST nodes from editor cursor position
+function highlightAstNodesFromEditor() {
+    if (!astPaper || !currentAstData) return;
+
+    var cursorPos = editor.getCursorPosition();
+    var lineNum = cursorPos.row + 1;
+
+    // Clear all highlights
+    astGraph.getCells().forEach(function(cell) {
+        if (cell.isElement && cell.isElement()) {
+            cell.removeAttr('body/class', { rewrite: true });
+            var category = cell.astCategory || 'other';
+            cell.attr('body/class', 'ast-node-rect ast-node-' + category);
+        }
+    });
+
+    // Highlight nodes at current line
+    if (astNodeMap.has(lineNum)) {
+        var cells = astNodeMap.get(lineNum);
+        cells.forEach(function(cell) {
+            var category = cell.astCategory || 'other';
+            cell.attr('body/class', 'ast-node-rect ast-node-' + category + ' ast-node-highlighted');
+
+            // Scroll first node into view
+            if (cells.indexOf(cell) === 0) {
+                var cellView = astPaper.findViewByModel(cell);
+                if (cellView) {
+                    var bbox = cellView.getBBox();
+                    // Scroll the output area to show the highlighted node
+                    output_area.scrollTop = Math.max(0, bbox.y - 100);
+                    output_area.scrollLeft = Math.max(0, bbox.x - 50);
+                }
+            }
+        });
+    }
+}
+
+// AST button click handler
+function initAstVisualization() {
+    ast_button.addEventListener('click', function() {
+        if (!isUsable) {
+            console.log('skipping due to already running');
+            return;
+        }
+        isUsable = false;
+        output_area.innerText = '';
+        ast_button.textContent = "Generating AST";
+        disableButtons();
+
+        var code = editor.getValue();
+        var astWrapper = document.getElementById('ast_dumper_source').innerText;
+        code = "?>" + code;
+
+        // Run AST dumper
+        var contentsFragment = 'rawurldecode("' + encodeURIComponent(code) + '")';
+        var astCode = astWrapper.replace('$CONTENTS_TO_ANALYZE', contentsFragment);
+
+        combinedOutput = '';
+        combinedHTMLOutput = '';
+
+        lazyGenerateNewPHPModule(function() {
+            let ret = phpModule.ccall('pib_eval', 'number', ["string"], [astCode]);
+            console.log('AST generation complete', ret);
+
+            if (ret == 0 && combinedHTMLOutput) {
+                try {
+                    var astData = JSON.parse(combinedHTMLOutput);
+                    console.log('AST data:', astData);
+
+                    // Render in output area
+                    renderAstVisualization(astData);
+
+                    // Set up cursor tracking
+                    editor.selection.on('changeCursor', highlightAstNodesFromEditor);
+                    highlightAstNodesFromEditor(); // Initial highlight
+
+                } catch (e) {
+                    console.error('Failed to parse AST JSON:', e);
+                    output_area.innerText = 'Failed to parse AST data: ' + e.message;
+                }
+            } else {
+                console.error('AST generation failed or no output');
+                output_area.innerText = 'Failed to generate AST. Check console for errors.';
+            }
+
+            // Cleanup and reset
+            try {
+                phpModule._pib_force_exit();
+            } catch (e) {
+                // ExitStatus expected
+            }
+            phpModule = null;
+            phpModuleDidLoad = false;
+            enableButtons();
+            ast_button.textContent = "AST";
+            isUsable = true;
+            lazyGenerateNewPHPModule();
+        });
+    });
+}
+
 if (!window.WebAssembly) {
     showWebAssemblyError('Your browser does not support WebAssembly.');
 } else {
@@ -1003,6 +1578,7 @@ if (!window.WebAssembly) {
                 isUsable = true;
                 init();
                 initPluginModal();
+                initAstVisualization();
 
                 // Auto-analyze if code was provided in URL
                 if ((query.has('c') || query.has('code')) && editor.getValue().trim()) {
