@@ -58,6 +58,49 @@ var currentPhanVersion = '5.5.2';  // default
 var currentAstVersion = '1.1.3';  // default (matches HTML)
 var shouldAutoAnalyze = false;
 
+// Dark mode toggle functionality
+(function() {
+    const darkModeToggle = document.getElementById('dark-mode-toggle');
+    const themeIcon = darkModeToggle.querySelector('.theme-icon');
+    const htmlElement = document.documentElement;
+
+    // Check for saved theme preference or detect system preference
+    let currentTheme = localStorage.getItem('theme');
+    if (!currentTheme) {
+        // No saved preference, use system preference
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        currentTheme = prefersDark ? 'dark' : 'light';
+    }
+
+    // Apply the theme
+    htmlElement.setAttribute('data-theme', currentTheme);
+    themeIcon.textContent = currentTheme === 'dark' ? '☀️' : '🌙';
+
+    // Update ace editor theme
+    if (currentTheme === 'dark') {
+        editor.setTheme("ace/theme/tomorrow_night");
+    } else {
+        editor.setTheme("ace/theme/github");
+    }
+
+    // Toggle theme on button click
+    darkModeToggle.addEventListener('click', function() {
+        const currentTheme = htmlElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+        htmlElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        themeIcon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+
+        // Update ace editor theme
+        if (newTheme === 'dark') {
+            editor.setTheme("ace/theme/tomorrow_night");
+        } else {
+            editor.setTheme("ace/theme/github");
+        }
+    });
+})();
+
 // Phan plugin definitions and level mappings (alphabetically sorted)
 // Note: Some plugins are excluded because they require external dependencies not available in WebAssembly:
 // - InvokePHPNativeSyntaxCheckPlugin (requires php binary)
