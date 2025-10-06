@@ -1216,6 +1216,9 @@ function renderAstVisualization(astData) {
     var paperWidth = Math.max(output_area.clientWidth, 1000);
     var paperHeight = Math.max(output_area.clientHeight, 2000);
 
+    // Get current theme background color
+    var backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--output-bg').trim();
+
     astPaper = new joint.dia.Paper({
         el: canvas,
         model: astGraph,
@@ -1226,7 +1229,7 @@ function renderAstVisualization(astData) {
             elementMove: false  // Disable dragging nodes
         },
         background: {
-            color: '#f8f9fa'
+            color: backgroundColor
         }
     });
 

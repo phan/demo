@@ -20,6 +20,33 @@
     --hover-bg: rgba(13, 110, 253, 0.1);
     --highlight-bg: rgba(255, 243, 205, 0.5);
     --output-highlight-bg: #fff3cd;
+
+    /* Phan syntax highlighting colors */
+    --phan-class: #0a5c2e;
+    --phan-code: #5a32a3;
+    --phan-const: #a3195b;
+    --phan-critical: #b02a37;
+    --phan-file: #0a7c92;
+    --phan-function: #c35a00;
+    --phan-gray: #495057;
+
+    /* AST node colors */
+    --ast-statement-fill: #cfe2ff;
+    --ast-statement-stroke: #0d6efd;
+    --ast-expression-fill: #d1e7dd;
+    --ast-expression-stroke: #198754;
+    --ast-literal-fill: #fff3cd;
+    --ast-literal-stroke: #ffc107;
+    --ast-declaration-fill: #e7d6f8;
+    --ast-declaration-stroke: #6f42c1;
+    --ast-name-fill: #f8d7da;
+    --ast-name-stroke: #dc3545;
+    --ast-other-fill: #e9ecef;
+    --ast-other-stroke: #6c757d;
+    --ast-text-color: #212529;
+    --ast-text-details: #6c757d;
+    --ast-highlight-fill: #fff3cd;
+    --ast-highlight-stroke: #ffc107;
 }
 
 [data-theme="dark"] {
@@ -40,8 +67,35 @@
     --output-bg: #1e2128;
     --modal-overlay: rgba(0, 0, 0, 0.7);
     --hover-bg: rgba(13, 110, 253, 0.15);
-    --highlight-bg: rgba(255, 193, 7, 0.15);
-    --output-highlight-bg: rgba(255, 193, 7, 0.2);
+    --highlight-bg: rgba(255, 193, 7, 0.12);
+    --output-highlight-bg: rgba(255, 193, 7, 0.15);
+
+    /* Phan syntax highlighting colors - brighter for dark mode */
+    --phan-class: #5dd39e;
+    --phan-code: #b794f6;
+    --phan-const: #f687b3;
+    --phan-critical: #fc8181;
+    --phan-file: #63b3ed;
+    --phan-function: #ffa94d;
+    --phan-gray: #cbd5e0;
+
+    /* AST node colors - darker backgrounds with bright borders for dark mode */
+    --ast-statement-fill: #1e3a5f;
+    --ast-statement-stroke: #63b3ed;
+    --ast-expression-fill: #1e3d2f;
+    --ast-expression-stroke: #5dd39e;
+    --ast-literal-fill: #3d3320;
+    --ast-literal-stroke: #ffa94d;
+    --ast-declaration-fill: #2d2440;
+    --ast-declaration-stroke: #b794f6;
+    --ast-name-fill: #3d2227;
+    --ast-name-stroke: #fc8181;
+    --ast-other-fill: #2a2e35;
+    --ast-other-stroke: #adb5bd;
+    --ast-text-color: #e9ecef;
+    --ast-text-details: #adb5bd;
+    --ast-highlight-fill: #4a3f1a;
+    --ast-highlight-stroke: #ffa94d;
 }
 
 * {
@@ -238,43 +292,43 @@ h1 {
     padding: 0;
 }
 
-/* Phan syntax highlighting - High contrast colors */
+/* Phan syntax highlighting - Using theme variables */
 .phan_class, .phan_classlike, .phan_comment, .phan_details, .phan_interface, .phan_namespace, .phan_trait {
-    color: #0a5c2e;
+    color: var(--phan-class);
     font-weight: 600;
 }
 .phan_code, .phan_count, .phan_index, .phan_scalar, .phan_string_literal {
-    color: #5a32a3;
+    color: var(--phan-code);
     font-weight: 600;
 }
 .phan_const, .phan_operator {
-    color: #a3195b;
+    color: var(--phan-const);
     font-weight: 600;
 }
 .phan_issuetype_critical {
     font-weight: bold;
-    color: #b02a37;
+    color: var(--phan-critical);
 }
 .stderr {
-    color: #b02a37;
+    color: var(--phan-critical);
     font-weight: 600;
 }
 .phan_file, .phan_parameter, .phan_property, .phan_variable {
-    color: #0a7c92;
+    color: var(--phan-file);
     font-weight: 600;
 }
 .phan_function, .phan_functionlike, .phan_method {
-    color: #c35a00;
+    color: var(--phan-function);
     font-weight: 600;
 }
 .phan_issuetype {
-    color: #c35a00;
+    color: var(--phan-function);
 }
 .phan_issuetype_normal {
-    color: #b02a37;
+    color: var(--phan-critical);
 }
 .phan_line, .phan_suggestion, .phan_type {
-    color: #495057;
+    color: var(--phan-gray);
 }
 
 /* Highlighting for line number correlation */
@@ -588,33 +642,33 @@ h1 {
 
 /* AST node colors by category */
 .ast-node-statement {
-    fill: #cfe2ff;
-    stroke: #0d6efd;
+    fill: var(--ast-statement-fill);
+    stroke: var(--ast-statement-stroke);
 }
 
 .ast-node-expression {
-    fill: #d1e7dd;
-    stroke: #198754;
+    fill: var(--ast-expression-fill);
+    stroke: var(--ast-expression-stroke);
 }
 
 .ast-node-literal {
-    fill: #fff3cd;
-    stroke: #ffc107;
+    fill: var(--ast-literal-fill);
+    stroke: var(--ast-literal-stroke);
 }
 
 .ast-node-declaration {
-    fill: #e7d6f8;
-    stroke: #6f42c1;
+    fill: var(--ast-declaration-fill);
+    stroke: var(--ast-declaration-stroke);
 }
 
 .ast-node-name {
-    fill: #f8d7da;
-    stroke: #dc3545;
+    fill: var(--ast-name-fill);
+    stroke: var(--ast-name-stroke);
 }
 
 .ast-node-other {
-    fill: #e9ecef;
-    stroke: #6c757d;
+    fill: var(--ast-other-fill);
+    stroke: var(--ast-other-stroke);
 }
 
 /* AST node highlighting - use combined class selector (no space between classes) */
@@ -624,40 +678,40 @@ h1 {
 }
 
 .ast-node-statement.ast-node-highlighted {
-    fill: #fff3cd !important;
-    stroke: #ffc107 !important;
+    fill: var(--ast-highlight-fill) !important;
+    stroke: var(--ast-highlight-stroke) !important;
 }
 
 .ast-node-expression.ast-node-highlighted {
-    fill: #fff3cd !important;
-    stroke: #ffc107 !important;
+    fill: var(--ast-highlight-fill) !important;
+    stroke: var(--ast-highlight-stroke) !important;
 }
 
 .ast-node-literal.ast-node-highlighted {
-    fill: #fff3cd !important;
-    stroke: #ffc107 !important;
+    fill: var(--ast-highlight-fill) !important;
+    stroke: var(--ast-highlight-stroke) !important;
 }
 
 .ast-node-declaration.ast-node-highlighted {
-    fill: #fff3cd !important;
-    stroke: #ffc107 !important;
+    fill: var(--ast-highlight-fill) !important;
+    stroke: var(--ast-highlight-stroke) !important;
 }
 
 .ast-node-name.ast-node-highlighted {
-    fill: #fff3cd !important;
-    stroke: #ffc107 !important;
+    fill: var(--ast-highlight-fill) !important;
+    stroke: var(--ast-highlight-stroke) !important;
 }
 
 .ast-node-other.ast-node-highlighted {
-    fill: #fff3cd !important;
-    stroke: #ffc107 !important;
+    fill: var(--ast-highlight-fill) !important;
+    stroke: var(--ast-highlight-stroke) !important;
 }
 
 /* AST node text */
 .joint-element text {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-size: 10px;
-    fill: #212529;
+    fill: var(--ast-text-color);
     pointer-events: none;
 }
 
@@ -668,25 +722,26 @@ h1 {
 
 .ast-node-details {
     font-size: 9px;
-    fill: #6c757d;
+    fill: var(--ast-text-details);
 }
 
 /* Link styling */
 .joint-link .connection {
-    stroke: #dee2e6;
+    stroke: var(--border-color);
     stroke-width: 1;
 }
 
 .joint-link .marker-target {
-    fill: #dee2e6;
+    fill: var(--border-color);
 }
 
 /* Edge label styling */
 .edge-label {
-    background: white;
+    background: var(--bg-primary);
     padding: 2px 4px;
     border-radius: 3px;
-    border: 1px solid #dee2e6;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
 }
 
 /* Tooltip styling */
