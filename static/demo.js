@@ -98,6 +98,13 @@ var shouldAutoAnalyze = false;
         } else {
             editor.setTheme("ace/theme/github");
         }
+
+        // Update AST background if AST view is active
+        if (astPaper) {
+            var backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--output-bg').trim();
+            astPaper.options.background.color = backgroundColor;
+            astPaper.drawBackground();
+        }
     });
 })();
 
