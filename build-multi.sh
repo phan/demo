@@ -59,14 +59,38 @@ build_phan_from_git() {
     local phan_git_dir="phan-git-${version_label}"
     local phar_name="phan-${version_label}.phar"
 
-    if [ ! -e "$phar_name" ]; then
-        echo "Building Phan from git branch: $branch" >&2
+    # Clone or update the repository first to check for new commits
+    echo "Checking for updates in git branch: $branch" >&2
+    if [ ! -d "$phan_git_dir" ]; then
+        git clone --branch "$branch" https://github.com/phan/phan.git "$phan_git_dir" >&2
+    else
+        (cd "$phan_git_dir" && git pull) >&2
+    fi
 
-        if [ ! -d "$phan_git_dir" ]; then
-            git clone --branch "$branch" https://github.com/phan/phan.git "$phan_git_dir" >&2
+    # Get the current commit hash
+    CURRENT_COMMIT=$(cd "$phan_git_dir" && git rev-parse --short HEAD)
+
+    # Check if we have a previously built commit hash
+    local needs_rebuild=false
+    if [ ! -e "$phar_name" ]; then
+        echo "No existing phar found, will build" >&2
+        needs_rebuild=true
+    elif [ -f "${phar_name}.commit" ]; then
+        PREVIOUS_COMMIT=$(cat "${phar_name}.commit")
+        if [ "$CURRENT_COMMIT" != "$PREVIOUS_COMMIT" ]; then
+            echo "New commit detected: $PREVIOUS_COMMIT -> $CURRENT_COMMIT" >&2
+            needs_rebuild=true
         else
-            (cd "$phan_git_dir" && git pull) >&2
+            echo "Already up to date at commit: $CURRENT_COMMIT" >&2
         fi
+    else
+        # Phar exists but no commit file, rebuild to be safe
+        echo "No commit metadata found, will rebuild" >&2
+        needs_rebuild=true
+    fi
+
+    if [ "$needs_rebuild" = true ]; then
+        echo "Building Phan from git branch: $branch" >&2
 
         # Build the phar
         (
