@@ -1,0 +1,31 @@
+--- config.m4.orig	2025-10-06 17:33:40.690173435 -0400
++++ config.m4	2025-10-06 17:33:53.430396163 -0400
+@@ -8,17 +8,20 @@
+ [  --enable-vld-dev          VLD: Enable developer flags],, no)
+ 
+ if test "$PHP_VLD" != "no"; then
+-  AC_MSG_CHECKING([Check for supported PHP versions])
+-  PHP_VLD_FOUND_VERSION=`${PHP_CONFIG} --version`
+-  PHP_VLD_FOUND_VERNUM=`echo "${PHP_VLD_FOUND_VERSION}" | $AWK 'BEGIN { FS = "."; } { printf "%d", ([$]1 * 100 + [$]2) * 100 + [$]3;}'`
+-  if test "$PHP_VLD_FOUND_VERNUM" -lt "70000"; then
+-    AC_MSG_ERROR([not supported. Need a PHP version >= 7.0.0 (found $PHP_VLD_FOUND_VERSION)])
++  if test -n "$PHP_CONFIG"; then
++    AC_MSG_CHECKING([Check for supported PHP versions])
++    PHP_VLD_FOUND_VERSION=`${PHP_CONFIG} --version`
++    PHP_VLD_FOUND_VERNUM=`echo "${PHP_VLD_FOUND_VERSION}" | $AWK 'BEGIN { FS = "."; } { printf "%d", ([$]1 * 100 + [$]2) * 100 + [$]3;}'`
++    if test "$PHP_VLD_FOUND_VERNUM" -lt "70000"; then
++      AC_MSG_ERROR([not supported. Need a PHP version >= 7.0.0 (found $PHP_VLD_FOUND_VERSION)])
++    else
++      AC_MSG_RESULT([supported ($PHP_VLD_FOUND_VERSION)])
++    fi
+   else
+-    AC_MSG_RESULT([supported ($PHP_VLD_FOUND_VERSION)])
++    AC_MSG_CHECKING([Check for supported PHP versions])
++    AC_MSG_RESULT([skipping version check (cross-compiling)])
+   fi
+ 
+-  CPPFLAGS=$old_CPPFLAGS
+-
+   if test "$PHP_VLD_DEV" = "yes"; then
+     AX_CHECK_COMPILE_FLAG(-Wbool-conversion,                _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wbool-conversion")
+     AX_CHECK_COMPILE_FLAG(-Wdeclaration-after-statement,    _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wdeclaration-after-statement")

@@ -11,6 +11,7 @@ builds/
 /php-7.*
 *.phar
 /phan-git-*/
+/vld-git/
 /ast-*.tgz
 package.xml
 

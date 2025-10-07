@@ -4,6 +4,7 @@
 var editor = ace.edit("editor");
 editor.setTheme("ace/theme/github");
 editor.session.setMode("ace/mode/php");
+editor.session.setUseWorker(false);  // Disable syntax validation - we use Phan instead
 editor.setShowPrintMargin(false);
 editor.setFontSize(18);
 
@@ -284,7 +285,7 @@ function lazyGenerateNewPHPModule(cb) {
     }
 }
 
-function doRun(code, outputIsHTML, defaultText) {
+function doRunWithPhar(code, outputIsHTML, defaultText, pharName) {
     output_area.innerHTML = '';
     code = code + "\necho PHP_EOL;" // flush line buffer
     console.log('evaluating code'); // , code);
@@ -294,6 +295,16 @@ function doRun(code, outputIsHTML, defaultText) {
         lazyGenerateNewPHPModule(invokePHPInner);
     };
     let invokePHPInner = function () {
+        // Load the phar file now that the PHP module is ready
+        if (pharName) {
+            loadPharFile(pharName, function() {
+                executeCode();
+            });
+        } else {
+            executeCode();
+        }
+    };
+    let executeCode = function() {
         let ret = phpModule.ccall('pib_eval', 'number', ["string"], [code])
         console.log('done evaluating code', ret);
         if (ret != 0) {
@@ -315,6 +326,10 @@ function doRun(code, outputIsHTML, defaultText) {
                 }
                 phpModule = null;
                 phpModuleDidLoad = false;
+
+                // Clear loaded phar tracking since the new module will have a fresh virtual filesystem
+                loadedPharFiles = {};
+
                 enableButtons();
                 isUsable = true;
                 console.log('buttons enabled');
@@ -353,13 +368,15 @@ function doRunWithWrapper(analysisWrapper, code, outputIsHTML, defaultText) {
     var pluginsCode = 'Config::setValue(\'plugins\', ' + JSON.stringify(activePlugins) + ');';
     analysisCode = analysisCode.replace('$ACTIVE_PLUGINS_PLACEHOLDER', pluginsCode);
 
-    doRun(analysisCode, outputIsHTML, defaultText);
+    // Pass the phar name to doRun so it can be loaded after PHP module is ready
+    doRunWithPhar(analysisCode, outputIsHTML, defaultText, phanPharName);
 }
 
 var didInit = false;
 
 var ast_button = document.getElementById('ast');
-var buttons = [run_button, analyze_button, ast_button];
+var opcodes_button = document.getElementById('opcodes');
+var buttons = [run_button, analyze_button, ast_button, opcodes_button];
 
 // Function to enforce ast version constraints (global so modal can use it)
 function enforceAstConstraints() {
@@ -402,6 +419,7 @@ function enableButtons() {
     run_button.textContent = "Run"
     analyze_button.textContent = "Analyze"
     ast_button.textContent = "AST"
+    opcodes_button.textContent = "Opcodes"
     for (var button of buttons) {
         button.disabled = false
         button.classList.remove('disabled')
@@ -450,9 +468,64 @@ function fetchRemotePackage(packageName, callback) {
 var phpWasmBinary = null;
 var phpWasmData = null;
 var currentVersionPath = '';
+var loadedPharFiles = {}; // Cache loaded phar files
 
 function getVersionPath() {
-    return 'builds/php-' + currentPhpVersion + '/phan-' + currentPhanVersion + '/ast-' + currentAstVersion + '/';
+    // New structure: builds/php-{VERSION}/ast-{VERSION}/
+    return 'builds/php-' + currentPhpVersion + '/ast-' + currentAstVersion + '/';
+}
+
+// Function to load a .phar file dynamically into the PHP virtual filesystem
+function loadPharFile(pharName, callback) {
+    // Check if already loaded
+    if (loadedPharFiles[pharName]) {
+        console.log('Phar already loaded:', pharName);
+        callback();
+        return;
+    }
+
+    console.log('Loading phar file:', pharName);
+    var startTime = performance.now();
+
+    // Add cache-busting parameter to force reload (especially important for v6-dev updates)
+    var cacheBuster = '?v=' + Date.now();
+    fetch(pharName + cacheBuster)
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error('Failed to fetch ' + pharName + ': ' + response.status);
+            }
+            return response.arrayBuffer();
+        })
+        .then(function(buffer) {
+            var fetchTime = performance.now() - startTime;
+            console.log('Fetched ' + pharName + ' (' + buffer.byteLength + ' bytes) in ' + fetchTime.toFixed(2) + 'ms');
+
+            // Write to virtual filesystem using FS_createDataFile
+            var uint8Array = new Uint8Array(buffer);
+            var filename = '/' + pharName;
+
+            // Use the module's FS object (exported via EXPORTED_RUNTIME_METHODS)
+            if (phpModule && phpModule.FS && phpModule.FS.createDataFile) {
+                phpModule.FS.createDataFile('/', pharName, uint8Array, true, true, true);
+                loadedPharFiles[pharName] = true;
+                console.log('Successfully loaded ' + pharName + ' into virtual filesystem');
+                callback();
+            } else {
+                var errorMsg = 'PHP module not ready or FS not available';
+                if (!phpModule) {
+                    errorMsg += ' (phpModule is null/undefined)';
+                } else if (!phpModule.FS) {
+                    errorMsg += ' (FS object not found)';
+                } else if (!phpModule.FS.createDataFile) {
+                    errorMsg += ' (FS.createDataFile not found)';
+                }
+                throw new Error(errorMsg);
+            }
+        })
+        .catch(function(error) {
+            console.error('Error loading phar:', error);
+            showWebAssemblyError('Failed to load ' + pharName + ': ' + error.message);
+        });
 }
 
 function updatePhanVersionInfo() {
@@ -498,14 +571,12 @@ function loadPhpWasm(cb) {
 
     // Reset cached data when version changes
     phpWasmBinary = null;
-    phpWasmData = null;
+    phpWasmData = null; // Not used anymore (no embedded files)
 
     fetchRemotePackage(currentVersionPath + 'php.wasm', function (data) {
         phpWasmBinary = data;
-        fetchRemotePackage(currentVersionPath + 'php.data', function (data) {
-            phpWasmData = data;
-            cb(phpWasmBinary);
-        });
+        // No php.data to load - phars are loaded dynamically
+        cb(phpWasmBinary);
     });
 }
 
@@ -531,6 +602,10 @@ function reloadPHPModule() {
     }
     phpModuleDidLoad = false;
     fillReusableMemoryWithZeroes();
+
+    // Clear loaded phar tracking since the new module will have a fresh virtual filesystem
+    loadedPharFiles = {};
+    console.log('Cleared phar file cache for new module');
 
     // Clear window.PHP to force reload of new version
     window.PHP = undefined;
@@ -663,6 +738,7 @@ function init() {
         isUsable = false;
         output_area.innerText = '';
         output_area.classList.remove('ast-view');
+        output_area.classList.remove('opcode-view');
         // Remove AST cursor tracking if active
         editor.selection.removeListener('changeCursor', highlightAstNodesFromEditor);
         if (currentEditorHighlightFromAst) {
@@ -685,6 +761,7 @@ function init() {
         isUsable = false;
         output_area.innerText = '';
         output_area.classList.remove('ast-view');
+        output_area.classList.remove('opcode-view');
         // Remove AST cursor tracking if active
         editor.selection.removeListener('changeCursor', highlightAstNodesFromEditor);
         if (currentEditorHighlightFromAst) {
@@ -834,15 +911,10 @@ function generateNewPHPModule() {
             }
         },
         wasmBinary: phpWasmBinary,
-        wasmMemory: reusableWasmMemory,
-        getPreloadedPackage: function(name) {
-          if (name === 'php.data') {
-            console.log('getPreloadedPackage returning php.data', phpWasmBinary);
-            return phpWasmData;
-          }
-        }
+        wasmMemory: reusableWasmMemory
+        // No getPreloadedPackage needed - phars loaded dynamically
     };
-    console.log('creating PHP module fetchPreloadedPackage override');
+    console.log('creating PHP module (phars will be loaded dynamically)');
     return PHP(phpModuleOptions).then(function (newPHPModule) {
         console.log('created PHP module', newPHPModule);
         return newPHPModule;
@@ -1547,6 +1619,7 @@ function initAstVisualization() {
         }
         isUsable = false;
         output_area.innerText = '';
+        output_area.classList.remove('opcode-view');
         ast_button.textContent = "Generating AST";
         disableButtons();
 
@@ -1596,6 +1669,203 @@ function initAstVisualization() {
             phpModuleDidLoad = false;
             enableButtons();
             ast_button.textContent = "AST";
+            isUsable = true;
+            lazyGenerateNewPHPModule();
+        });
+    });
+
+    opcodes_button.addEventListener('click', function() {
+        if (!isUsable) {
+            console.log('skipping due to already running');
+            return;
+        }
+        isUsable = false;
+        output_area.innerText = '';
+        output_area.classList.remove('ast-view');
+        output_area.classList.remove('opcode-view');
+        // Remove AST cursor tracking if active
+        editor.selection.removeListener('changeCursor', highlightAstNodesFromEditor);
+        if (currentEditorHighlightFromAst) {
+            editor.session.removeMarker(currentEditorHighlightFromAst);
+            currentEditorHighlightFromAst = null;
+        }
+        // Remove opcode cursor tracking if active
+        if (window.highlightOpcodesForCurrentLine) {
+            editor.selection.removeListener('changeCursor', window.highlightOpcodesForCurrentLine);
+            window.highlightOpcodesForCurrentLine = null;
+        }
+        opcodes_button.textContent = "Generating Opcodes";
+        disableButtons();
+
+        var code = editor.getValue();
+        // Strip any existing PHP tags from user code
+        code = code.replace(/^<\?php\s*/i, '').replace(/\?>\s*$/i, '').trim();
+
+        combinedOutput = '';
+        combinedHTMLOutput = '';
+
+        // Force cleanup of current module to create new one with VLD enabled
+        if (phpModule) {
+            try {
+                phpModule._pib_force_exit();
+            } catch (e) {
+                // ExitStatus expected
+            }
+            phpModule = null;
+        }
+        phpModuleDidLoad = false;
+
+        // Create a new PHP module with VLD enabled via php.ini
+        generateNewPHPModule().then(function(newPHPModule) {
+            phpModule = newPHPModule;
+            phpModuleDidLoad = true;
+
+            // Create php.ini with VLD settings in the virtual filesystem
+            var phpIniContent =
+                "vld.active=1\n" +
+                "vld.execute=0\n" +
+                "vld.verbosity=1\n" +
+                "vld.dump_paths=0\n";
+
+            phpModule.FS.writeFile('/php.ini', phpIniContent);
+            console.log('Created /php.ini with VLD settings');
+
+            // Run user code directly - VLD will dump its opcodes
+            let ret = phpModule.ccall('pib_eval', 'number', ["string"], [code]);
+            console.log('Opcode generation complete', ret);
+
+            // VLD outputs to stdout/stderr
+            if (combinedOutput || combinedHTMLOutput) {
+                // Strip HTML tags from the output
+                var temp = document.createElement('div');
+                temp.innerHTML = combinedHTMLOutput || combinedOutput;
+                var text = temp.textContent || temp.innerText;
+
+                // Filter and parse VLD output
+                var lines = text.split('\n');
+                var html = '';
+
+                lines.forEach(function(line) {
+                    // Remove "filename: PIB" lines
+                    if (line.match(/^filename:\s+PIB\s*$/)) return;
+                    // Remove "function name: (null)" lines
+                    if (line.match(/^function name:\s+\(null\)\s*$/)) return;
+
+                    // Check if this is an opcode line with a line number
+                    // Format: "    6     0*       NEW ..."
+                    var opcodeMatch = line.match(/^(\s+)(\d+)(\s+\d+\*\s+.*)$/);
+                    if (opcodeMatch) {
+                        var indent = opcodeMatch[1];
+                        var lineNum = opcodeMatch[2];
+                        var rest = opcodeMatch[3];
+
+                        html += '<div class="opcode-line">';
+                        html += '<span class="opcode-line-number" data-line="' + lineNum + '">' +
+                                indent + lineNum + '</span>';
+                        html += '<span class="opcode-content">' + htmlescape(rest) + '</span>';
+                        html += '</div>';
+                    } else {
+                        // Regular line (headers, separators, etc.)
+                        html += '<div class="opcode-text">' + htmlescape(line) + '</div>';
+                    }
+                });
+
+                output_area.innerHTML = html;
+                output_area.classList.add('opcode-view');
+
+                // Track editor highlight for opcodes
+                var currentOpcodeEditorHighlight = null;
+                function highlightEditorLineFromOpcode(lineNum) {
+                    if (currentOpcodeEditorHighlight) {
+                        editor.session.removeMarker(currentOpcodeEditorHighlight);
+                        currentOpcodeEditorHighlight = null;
+                    }
+                    if (lineNum !== null) {
+                        var Range = ace.require('ace/range').Range;
+                        currentOpcodeEditorHighlight = editor.session.addMarker(
+                            new Range(lineNum - 1, 0, lineNum - 1, 1000),
+                            'ace-highlight-line',
+                            'fullLine'
+                        );
+                    }
+                }
+
+                // Add click and hover handlers for opcode lines
+                var opcodeLines = output_area.querySelectorAll('.opcode-line');
+                opcodeLines.forEach(function(elem) {
+                    var lineNumSpan = elem.querySelector('.opcode-line-number');
+                    if (lineNumSpan) {
+                        var line = parseInt(lineNumSpan.getAttribute('data-line'));
+
+                        // Click handler
+                        elem.addEventListener('click', function() {
+                            if (!isNaN(line) && line > 0) {
+                                editor.gotoLine(line, 0, true);
+                                editor.focus();
+                            }
+                        });
+
+                        // Hover handlers - highlight both opcode line and editor line
+                        elem.addEventListener('mouseenter', function() {
+                            if (!isNaN(line) && line > 0) {
+                                elem.classList.add('hovered');
+                                highlightEditorLineFromOpcode(line);
+                            }
+                        });
+
+                        elem.addEventListener('mouseleave', function() {
+                            elem.classList.remove('hovered');
+                            highlightEditorLineFromOpcode(null);
+                        });
+                    }
+                });
+
+                // Highlight opcodes for current editor line
+                window.highlightOpcodesForCurrentLine = function() {
+                    var cursorPos = editor.getCursorPosition();
+                    var lineNum = cursorPos.row + 1;
+
+                    var opcodeDivs = output_area.querySelectorAll('.opcode-line');
+                    opcodeDivs.forEach(function(div) {
+                        var lineNumSpan = div.querySelector('.opcode-line-number');
+                        if (lineNumSpan) {
+                            var opLineNum = parseInt(lineNumSpan.getAttribute('data-line'));
+                            if (opLineNum === lineNum) {
+                                div.classList.add('highlighted');
+                                // Scroll into view if needed
+                                if (div.offsetTop < output_area.scrollTop ||
+                                    div.offsetTop > output_area.scrollTop + output_area.clientHeight) {
+                                    div.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+                                }
+                            } else {
+                                div.classList.remove('highlighted');
+                            }
+                        }
+                    });
+                };
+
+                // Listen for cursor position changes
+                editor.selection.on('changeCursor', window.highlightOpcodesForCurrentLine);
+                // Initial highlight
+                window.highlightOpcodesForCurrentLine();
+            } else {
+                output_area.innerText = 'No opcode output generated.';
+            }
+
+            // Cleanup and reset
+            try {
+                phpModule._pib_force_exit();
+            } catch (e) {
+                // ExitStatus expected
+            }
+            phpModule = null;
+            phpModuleDidLoad = false;
+
+            // Clear loaded phar tracking since the new module will have a fresh virtual filesystem
+            loadedPharFiles = {};
+
+            enableButtons();
+            opcodes_button.textContent = "Opcodes";
             isUsable = true;
             lazyGenerateNewPHPModule();
         });

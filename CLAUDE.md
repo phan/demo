@@ -9,8 +9,8 @@ Phan-in-Browser is a web application that runs Phan (PHP static analyzer) and PH
 **Live demo**: https://phan.github.io/demo/
 
 The project compiles:
-- PHP 8.4.11 (with minimal extensions: ast, bcmath, ctype, filter, json, phar, mbstring, tokenizer)
-- Phan 5.5.1 or 5.5.2 static analyzer (as a .phar file)
+- PHP 8.1-8.5 (with minimal extensions: ast, vld, bcmath, ctype, filter, json, phar, mbstring, tokenizer)
+- Phan 5.5.1, 5.5.2, or v6-dev static analyzer (dynamically loaded .phar files)
 - Custom C evaluation wrapper (`pib_eval.c`)
 
 into WebAssembly that runs in modern browsers (Firefox/Chrome, requires 4GB+ RAM).
@@ -23,12 +23,15 @@ The project now supports building multiple PHP and Phan version combinations. Us
 
 **Supported versions:**
 - PHP: 8.1, 8.2, 8.3, 8.4, 8.5 RC1
-- Phan: 5.5.1, 5.5.2, v6-dev (user-selectable)
+- Phan: 5.5.1, 5.5.2, v6-dev (dynamically loaded)
 - php-ast: 1.1.2, 1.1.3 (user-selectable)
 
 **Note:**
+- Phan .phar files are loaded dynamically at runtime (not embedded in builds)
 - Phan v6-dev is built from the v6 branch using `internal/make_phar`
 - PHP 8.4, 8.5, and Phan v6-dev all require php-ast 1.1.3 (ast 1.1.2 is incompatible and will be disabled automatically)
+- VLD (Vulcan Logic Dumper) extension is included for opcode visualization
+- Opcache is not available (requires shared memory support not available in WebAssembly)
 
 ### Build with Docker (recommended)
 ```bash
@@ -42,26 +45,30 @@ docker run --rm -v $(pwd):/src emscripten/emsdk bash -c 'apt update && DEBIAN_FR
 
 The multi-version build process (`build-multi.sh`):
 1. Downloads Phan 5.5.1 and 5.5.2 from GitHub releases
-2. Builds Phan v6-dev from master branch using `internal/make_phar`
+2. Builds Phan v6-dev from v6 branch using `internal/make_phar`
 3. For each PHP version (8.1, 8.2, 8.3, 8.4, 8.5 RC1):
    - For each compatible php-ast version (1.1.2, 1.1.3):
-     - For each Phan version (5.5.1, 5.5.2, v6-dev):
        - Downloads PHP source
        - Applies version-specific error handler patch (`main-8.{1,2,3,4,5}.c`)
        - Downloads php-ast extension (version-specific)
-       - Configures PHP with minimal extensions using `emconfigure`
+       - Clones VLD extension from GitHub (latest version)
+       - Configures PHP with minimal extensions + VLD using `emconfigure`
        - Compiles with `emmake` and `emcc`
-       - Bundles with the selected Phan version
-4. Outputs to `builds/php-{VERSION}/phan-{VERSION}/ast-{VERSION}/` containing:
+       - Outputs PHP WebAssembly without embedded .phar
+4. Outputs to `builds/php-{VERSION}/ast-{VERSION}/` containing:
    - `php.wasm`
    - `php.js`
-   - `php.data`
 
-**Note:** Building all combinations creates 19 builds:
-- 3 PHP versions (8.1, 8.2, 8.3) × 2 ast × 2 Phan = 12 builds
-- 2 PHP versions (8.4, 8.5) × 1 ast × 2 Phan = 4 builds
-- 5 PHP versions × 1 ast × 1 Phan v6-dev = 5 builds (v6-dev requires ast 1.1.3)
-Each build can take 5-15 minutes.
+Phan .phar files are placed in the root directory and loaded dynamically at runtime:
+   - `phan-5.5.1.phar`
+   - `phan-5.5.2.phar`
+   - `phan-v6-dev.phar`
+
+**Note:** This creates only 7 builds total (vs. 19 in old system):
+- 3 PHP versions (8.1, 8.2, 8.3) × 2 ast = 6 builds
+- 2 PHP versions (8.4, 8.5) × 1 ast (1.1.3 only) = 2 builds
+- Minus 1 duplicate = **7 unique builds**
+Each build takes 5-15 minutes. **Total build time reduced by ~63%** compared to old system.
 
 ### Building Single Versions (Legacy)
 
@@ -105,23 +112,26 @@ Then open http://localhost:8080/
 - `#eval_wrapper_source` textarea contains wrapper for direct PHP execution with error handling
 
 **Dynamic Version Loading**:
-- `static/demo.js` dynamically loads the correct `php.js` script based on selected PHP/Phan/ast versions
-- Files are loaded from `builds/php-{VERSION}/phan-{VERSION}/ast-{VERSION}/` directory structure
-- When versions change, the WebAssembly module is reloaded with the new binaries
+- `static/demo.js` dynamically loads the correct `php.js` script based on selected PHP/ast versions
+- Files are loaded from `builds/php-{VERSION}/ast-{VERSION}/` directory structure
+- Phan .phar files are fetched on-demand and loaded into the virtual filesystem using `FS_createDataFile`
+- Loaded .phar files are cached in memory to avoid re-fetching
+- When PHP/ast versions change, the WebAssembly module is reloaded with the new binaries
 - Automatic constraint enforcement: selecting PHP 8.5 automatically requires ast 1.1.3
 
 ### Key Files
 
-- `build-multi.sh` - Multi-version build script (builds all PHP and Phan versions)
-- `build.sh` - Legacy single-version build script (PHP 8.4 + Phan 5.5.2)
+- `build-multi.sh` - Multi-version build script (builds all PHP + ast combinations)
+- `build.sh` - Legacy single-version build script (deprecated)
 - `pib_eval.c` - WebAssembly entry point (exports `pib_eval()`)
 - `main-8.{1,2,3,4,5}.c` - Version-specific modified PHP main.c files with custom error handling
 - `index.html` - Main UI with version selectors and embedded PHP runner code
-- `static/demo.js` - JavaScript handling version selection and WebAssembly loading
-- `static/demo.css` - Styling for UI including version selectors
+- `static/demo.js` - JavaScript handling version selection, WebAssembly loading, and dynamic .phar loading
+- `static/demo.css` - Styling for UI including version selectors and dark mode
 - `test.php` - Standalone test script for Phan
 - `examples/` - Example PHP snippets
-- `builds/` - Output directory for multi-version builds (not in git)
+- `builds/` - Output directory for PHP+ast builds (not in git)
+- `phan-*.phar` - Phan analyzer files loaded dynamically (not in git, generated by build)
 
 ## Testing Changes
 

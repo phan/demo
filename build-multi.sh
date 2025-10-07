@@ -88,9 +88,51 @@ build_phan_from_git() {
             fi
 
             # Build the phar using internal/make_phar
+            # Note: internal/make_phar does composer install --no-dev which removes the patches plugin
+            # So we'll need to manually apply patches after it runs
             if [ -x "internal/make_phar" ]; then
                 echo "Using internal/make_phar script" >&2
-                ./internal/make_phar >&2 || {
+
+                # Modify internal/make_phar to stop before building the phar
+                # We'll manually apply patches, then finish the build
+                php composer.phar install --classmap-authoritative --prefer-dist --no-dev >&2
+
+                # Manually apply the PHP 8.5 compatibility patch to var_representation_polyfill
+                echo "Manually applying PHP 8.5 compatibility patch..." >&2
+                PATCH_FILE="patches/var_representation_polyfill_php85_compat.patch"
+                TARGET_FILE="vendor/tysonandre/var_representation_polyfill/src/VarRepresentation/Encoder.php"
+
+                if [ -f "$PATCH_FILE" ] && [ -f "$TARGET_FILE" ]; then
+                    # Apply the patch using sed (simpler than patch command for single line change)
+                    sed -i "s/case 'NULL';/case 'NULL':/" "$TARGET_FILE" >&2
+                    echo "Applied PHP 8.5 compatibility patch to var_representation_polyfill" >&2
+
+                    # Verify it was applied
+                    if grep -q "case 'NULL':" "$TARGET_FILE"; then
+                        echo "Patch verified successfully" >&2
+                    else
+                        echo "WARNING: Patch may not have been applied correctly" >&2
+                    fi
+                else
+                    echo "WARNING: Patch file or target not found, skipping..." >&2
+                fi
+
+                # Apply the tolerant-parser nullable params patch
+                PATCH_FILE2="patches/tolerant-parser-nullable-params.patch"
+                if [ -f "$PATCH_FILE2" ]; then
+                    (cd vendor/microsoft/tolerant-php-parser && patch -p1 < "../../../$PATCH_FILE2") >&2 2>/dev/null || {
+                        echo "WARNING: tolerant-parser patch failed or already applied" >&2
+                    }
+                fi
+
+                # Now finish the build
+                rm -rf build
+                mkdir build
+                php -d phar.readonly=0 internal/package.php >&2
+                chmod a+x build/phan.phar
+
+                # Verify it works
+                php build/phan.phar --version >&2 || {
                     echo "Failed to build phar with internal/make_phar" >&2
                     echo "Checking if phar was created despite error..." >&2
                     if [ -f "build/phan.phar" ]; then
@@ -132,25 +174,23 @@ build_phan_from_git() {
     echo "$phar_name"
 }
 
-# Function to build PHP + Phan + ast combination
-build_php_phan_ast_combo() {
+# Function to build PHP + ast combination (no embedded phar)
+build_php_ast_combo() {
     local php_version=$1
-    local phan_phar=$2
-    local phan_version=$3
-    local ast_version=$4
+    local ast_version=$2
 
     local php_short=$(get_short_version "$php_version")
     local php_path="php-${php_version}"
-    local output_dir="${BUILD_ROOT}/php-${php_short}/phan-${phan_version}/ast-${ast_version}"
+    local output_dir="${BUILD_ROOT}/php-${php_short}/ast-${ast_version}"
 
     echo "========================================"
-    echo "Building PHP ${php_version} + Phan ${phan_version} + ast ${ast_version}"
+    echo "Building PHP ${php_version} + ast ${ast_version}"
     echo "========================================"
 
     mkdir -p "$output_dir"
 
     # Check if already built
-    if [ -f "${output_dir}/php.wasm" ] && [ -f "${output_dir}/php.js" ] && [ -f "${output_dir}/php.data" ]; then
+    if [ -f "${output_dir}/php.wasm" ] && [ -f "${output_dir}/php.js" ]; then
         echo "Already built: ${output_dir}"
         return 0
     fi
@@ -201,9 +241,22 @@ build_php_phan_ast_combo() {
     tar zxf "${ast_path}.tgz"
     mv "$ast_path" "${php_path}/ext/ast"
 
-    # Copy phan phar into PHP source directory
-    cp "$phan_phar" "${php_path}/"
-    local phar_basename=$(basename "$phan_phar")
+    # Download and setup VLD extension if needed
+    echo "Setting up VLD extension"
+    rm -rf "${php_path}/ext/vld"
+
+    if [ ! -d "vld-git" ]; then
+        echo "Cloning VLD extension from GitHub"
+        git clone https://github.com/derickr/vld.git vld-git
+    else
+        echo "VLD already cloned, pulling latest"
+        (cd vld-git && git pull)
+    fi
+    cp -r vld-git "${php_path}/ext/vld"
+
+    # Patch VLD config.m4 to skip PHP_CONFIG version check during cross-compilation
+    echo "Patching VLD config.m4 for cross-compilation"
+    (cd "${php_path}/ext/vld" && patch -p0 < ../../../patches/vld-emscripten.patch)
 
     # Configure and build
     echo "Configuring PHP ${php_version}"
@@ -221,7 +274,7 @@ build_php_phan_ast_combo() {
 
         set +e
 
-        # PHP 8.5 specific configure flags
+        # PHP version-specific configure flags
         local extra_flags=""
         if [[ "$php_version" == 8.5* ]]; then
             extra_flags="--disable-opcache-jit"
@@ -239,6 +292,7 @@ build_php_phan_ast_combo() {
           --without-pcre-jit \
           --with-layout=GNU \
           --enable-ast \
+          --enable-vld \
           --enable-bcmath \
           --enable-ctype \
           --enable-embed=static \
@@ -280,18 +334,17 @@ build_php_phan_ast_combo() {
           --llvm-lto 2 \
           -s ENVIRONMENT=web \
           -s EXPORTED_FUNCTIONS='["_pib_eval", "_php_embed_init", "_zend_eval_string", "_php_embed_shutdown"]' \
-          -s EXPORTED_RUNTIME_METHODS='["ccall"]' \
+          -s EXPORTED_RUNTIME_METHODS='["ccall","FS"]' \
           -s MODULARIZE=1 \
           -s EXPORT_NAME="'PHP'" \
           -s TOTAL_MEMORY=134217728 \
           -s ASSERTIONS=0 \
           -s INVOKE_RUN=0 \
           -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
-          --preload-file "$phar_basename" \
           libs/libphp.a pib_eval.o -o out/php.js
 
-        # Copy to output directory
-        cp out/php.wasm out/php.js out/php.data "../${output_dir}/"
+        # Copy to output directory (no .data file needed without preloaded files)
+        cp out/php.wasm out/php.js "../${output_dir}/"
     )
 
     echo "Successfully built: ${output_dir}"
@@ -323,7 +376,8 @@ echo "Note: Building stable releases ${PHAN_RELEASED_VERSIONS[*]} and v6-dev for
 # Building all combinations (5 PHP versions × 3 Phan versions = 15 builds) might be excessive
 # Let's build strategic combinations:
 
-echo "Building PHP + Phan + ast combinations..."
+echo "Building PHP + ast combinations..."
+echo "Note: Phan .phar files will be loaded dynamically at runtime"
 
 for php_version in "${PHP_VERSIONS[@]}"; do
     for ast_version in "${AST_VERSIONS[@]}"; do
@@ -337,17 +391,8 @@ for php_version in "${PHP_VERSIONS[@]}"; do
             continue
         fi
 
-        # Build each compatible PHP+ast version with all released Phan versions
-        for phan_version in "${PHAN_RELEASED_VERSIONS[@]}"; do
-            build_php_phan_ast_combo "$php_version" "${PHAN_PHARS[$phan_version]}" "$phan_version" "$ast_version"
-        done
-
-        # Build with v6-dev (requires ast 1.1.3)
-        if [[ "$ast_version" == "1.1.2" ]]; then
-            echo "Skipping Phan v6-dev + ast ${ast_version} (v6-dev requires ast 1.1.3+)"
-            continue
-        fi
-        build_php_phan_ast_combo "$php_version" "$PHAN_V6_DEV_PHAR" "v6-dev" "$ast_version"
+        # Build PHP + ast combination (phar will be loaded dynamically)
+        build_php_ast_combo "$php_version" "$ast_version"
     done
 done
 
@@ -356,6 +401,16 @@ echo "Build complete!"
 echo "========================================"
 echo "Built outputs are in: ${BUILD_ROOT}/"
 echo ""
+echo "Build summary:"
+echo "  - PHP versions: ${PHP_VERSIONS[*]}"
+echo "  - ast versions: ${AST_VERSIONS[*]}"
+echo "  - Total builds: $(find ${BUILD_ROOT} -name 'php.wasm' 2>/dev/null | wc -l)"
+echo ""
+echo "Phan .phar files available for dynamic loading:"
+echo "  - phan-5.5.1.phar"
+echo "  - phan-5.5.2.phar"
+echo "  - phan-v6-dev.phar"
+echo ""
 echo "Next steps:"
-echo "1. Update index.html to add version selectors"
-echo "2. Update static/demo.js to load the correct version files"
+echo "1. Update static/demo.js to dynamically load .phar files"
+echo "2. Test with: python3 -m http.server --bind 127.0.0.1 8081"
