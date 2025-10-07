@@ -6,8 +6,8 @@ gh-pages
 # Build artifacts at root level only
 /php-8.*
 /php-7.*
-*.phar
 /phan-git-*/
+/vld-git/
 /ast-*.tgz
 package.xml
 
