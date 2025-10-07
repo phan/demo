@@ -10,6 +10,8 @@ builds/
 /php-8.*
 /php-7.*
 *.phar
+*.phar.commit
+*.phar.info
 /phan-git-*/
 /vld-git/
 /ast-*.tgz
