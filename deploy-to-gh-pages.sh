@@ -37,12 +37,13 @@ if ! git diff-index --quiet HEAD --; then
     exit 1
 fi
 
-# Save builds/ and metadata files (they're untracked on master)
+# Save builds/ and phar files (they're untracked on master)
 TEMP_DIR=$(mktemp -d)
 echo "Saving builds/ directory to temp..."
 cp -r builds/ "$TEMP_DIR/" 2>/dev/null || true
-mv *.phar.info "$TEMP_DIR/" 2>/dev/null || true
-mv *.phar.commit "$TEMP_DIR/" 2>/dev/null || true
+cp *.phar "$TEMP_DIR/" 2>/dev/null || true
+cp *.phar.info "$TEMP_DIR/" 2>/dev/null || true
+cp *.phar.commit "$TEMP_DIR/" 2>/dev/null || true
 
 # Checkout gh-pages
 echo "Checking out gh-pages branch..."
@@ -56,12 +57,13 @@ git pull origin gh-pages
 echo "Copying web files..."
 git checkout $CURRENT_BRANCH -- index.html static/demo.js static/demo.css favicon.ico
 
-# Restore builds/ and metadata files from temp
+# Restore builds/ and phar files from temp
 echo "Restoring builds/ directory..."
 if [ -d "$TEMP_DIR/builds" ]; then
     rm -rf builds/
     cp -r "$TEMP_DIR/builds" .
 fi
+cp "$TEMP_DIR"/*.phar . 2>/dev/null || true
 cp "$TEMP_DIR"/*.phar.info . 2>/dev/null || true
 cp "$TEMP_DIR"/*.phar.commit . 2>/dev/null || true
 rm -rf "$TEMP_DIR"
@@ -78,7 +80,8 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     # Commit
     echo "Committing changes..."
     git add index.html static/demo.js static/demo.css favicon.ico builds/
-    # Also add phan metadata files if they exist
+    # Also add phar files and metadata if they exist
+    git add *.phar 2>/dev/null || true
     git add *.phar.info *.phar.commit 2>/dev/null || true
 
     # Create commit message with version info
