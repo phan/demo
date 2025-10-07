@@ -72,6 +72,9 @@
                 <div class="button-wrapper">
                     <button id="ast" title="View Abstract Syntax Tree" class="disabled" disabled="disabled">Loading...</button>
                 </div>
+                <div class="button-wrapper">
+                    <button id="opcodes" title="View Opcodes (VLD)" class="disabled" disabled="disabled">Loading...</button>
+                </div>
             </div>
         </div>
         <div class="playground-split-vertical">
@@ -133,7 +136,7 @@ $cli = CLI::fromRawValues([
     'allow-polyfill-parser' => false,
     'use-fallback-parser' => false,
     'redundant-condition-detection' => false,
-    'dead-code-detection' => false,
+    'dead-code-detection' => true,
     'no-progress-bar' => false,
 ], []);
 
@@ -263,6 +266,9 @@ try {
 } catch (Throwable $e) {
     fwrite(STDERR, "Error: " . $e->getMessage() . "\n");
 }
+    </textarea>
+    <textarea style="display:none" id="vld_dumper_source">
+include '/tmp/vld_user_code.php';
     </textarea>
     <textarea style="display:none" id="features_example">
 function demo($param, $arg) : ?int {

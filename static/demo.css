@@ -585,6 +585,35 @@ h1 {
     box-shadow: none;
 }
 
+#opcodes {
+    height: 3.2em;
+    padding: 0 2em;
+    font-size: 1em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: white;
+    white-space: nowrap;
+    background: #20c997;
+    box-shadow: 0 2px 6px rgba(32, 201, 151, 0.25);
+}
+
+#opcodes:hover:not(.disabled) {
+    background: #1aa179;
+    box-shadow: 0 3px 10px rgba(32, 201, 151, 0.35);
+    transform: translateY(-1px);
+}
+
+#opcodes.disabled {
+    background: #adb5bd;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
 /* AST visualization in output area */
 #output.ast-view {
     padding: 0;
@@ -809,4 +838,59 @@ h1 {
 
 #dark-mode-toggle:active {
     transform: scale(0.95);
+}
+/* Opcode view styles */
+#output.opcode-view {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 18px;
+    line-height: 1.1em;
+    padding: 1em;
+}
+
+.opcode-line {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+}
+
+.opcode-line.highlighted {
+    background-color: var(--output-highlight-bg);
+}
+
+.opcode-line.hovered {
+    background-color: var(--output-highlight-bg);
+}
+
+.opcode-line-number {
+    color: var(--text-tertiary);
+    user-select: none;
+    white-space: pre;
+    transition: color 0.2s ease;
+}
+
+.opcode-line:hover .opcode-line-number {
+    color: var(--phan-file);
+    text-decoration: underline;
+}
+
+.opcode-content {
+    white-space: pre;
+    flex: 1;
+}
+
+.opcode-text {
+    margin: 0;
+    padding: 0;
+    white-space: pre;
+    color: var(--text-secondary);
+}
+
+/* Opcode section headers */
+.opcode-text:has-text("Class "),
+.opcode-text:has-text("Function "),
+.opcode-text:has-text("End of ") {
+    font-weight: 600;
+    color: var(--text-primary);
 }
