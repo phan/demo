@@ -434,11 +434,33 @@ function disableButtons() {
 }
 
 function updateQueryParams(code) {
-    var query = new URLSearchParams();
-    if (code.length < 1024 && code != default_code) {
-        query.append('code', code);
-        history.replaceState({}, document.title, "?" + query.toString());
+    if (code == default_code) {
+        // Clear URL params for default code
+        history.replaceState({}, document.title, window.location.pathname);
+        return;
     }
+
+    var url = new URLSearchParams();
+
+    // Add compressed code
+    var compressed = LZString.compressToEncodedURIComponent(code);
+    url.set('c', compressed);
+
+    // Add version parameters
+    url.set('php', currentPhpVersion);
+    url.set('phan', currentPhanVersion);
+    url.set('ast', currentAstVersion);
+
+    // Encode active plugins as bitfield (using BigInt for 43+ plugins)
+    var pluginBits = 0n;
+    allPlugins.forEach(function(plugin, index) {
+        if (activePlugins.indexOf(plugin) !== -1) {
+            pluginBits |= (1n << BigInt(index));
+        }
+    });
+    url.set('plugins', pluginBits.toString());
+
+    history.replaceState({}, document.title, "?" + url.toString());
 }
 
 // Based on emscripten generated source
