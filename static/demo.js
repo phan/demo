@@ -491,10 +491,43 @@ var phpWasmBinary = null;
 var phpWasmData = null;
 var currentVersionPath = '';
 var loadedPharFiles = {}; // Cache loaded phar files
+var pharManifest = null; // Phar file mtimes for cache-busting
 
 function getVersionPath() {
     // New structure: builds/php-{VERSION}/ast-{VERSION}/
     return 'builds/php-' + currentPhpVersion + '/ast-' + currentAstVersion + '/';
+}
+
+// Fetch manifest.json with phar mtimes for cache-busting
+function fetchPharManifest(callback) {
+    if (pharManifest !== null) {
+        // Already loaded
+        callback();
+        return;
+    }
+
+    fetch('manifest.json')
+        .then(function(response) {
+            if (!response.ok) {
+                console.warn('Failed to fetch manifest.json, cache-busting will be disabled');
+                pharManifest = {}; // Empty object to prevent retrying
+                callback();
+                return;
+            }
+            return response.json();
+        })
+        .then(function(manifest) {
+            if (manifest) {
+                pharManifest = manifest;
+                console.log('Loaded phar manifest:', pharManifest);
+            }
+            callback();
+        })
+        .catch(function(error) {
+            console.warn('Error loading manifest.json:', error);
+            pharManifest = {}; // Empty object to prevent retrying
+            callback();
+        });
 }
 
 // Function to load a .phar file dynamically into the PHP virtual filesystem
@@ -509,8 +542,14 @@ function loadPharFile(pharName, callback) {
     console.log('Loading phar file:', pharName);
     var startTime = performance.now();
 
-    // Add cache-busting parameter to force reload (especially important for v6-dev updates)
-    var cacheBuster = '?v=' + Date.now();
+    // Use mtime from manifest for cache-busting (allows browser caching across page loads)
+    var cacheBuster = '';
+    if (pharManifest && pharManifest[pharName]) {
+        cacheBuster = '?v=' + pharManifest[pharName];
+    } else {
+        console.warn('No mtime found in manifest for', pharName, '- using timestamp');
+        cacheBuster = '?v=' + Date.now();
+    }
     fetch(pharName + cacheBuster)
         .then(function(response) {
             if (!response.ok) {
@@ -1911,31 +1950,34 @@ if (!window.WebAssembly) {
 
     console.log('Initial versions:', {php: currentPhpVersion, phan: currentPhanVersion, ast: currentAstVersion});
 
-    console.log('Loading PHP script dynamically');
-    loadPHPScript(function() {
-        console.log('downloading php.wasm');
-        loadPhpWasm(function () {
-            console.log('successfully downloaded php.wasm to reuse');
-            /** This fills the wasm memory with 0s, so that the next fresh program startup succeeds */
-            generateNewPHPModule().then(function (newPHPModule) {
-                console.log('successfully initialized php module');
-                phpModule = newPHPModule
-                isUsable = true;
-                init();
-                initPluginModal();
-                initAstVisualization();
+    console.log('Loading phar manifest for cache-busting');
+    fetchPharManifest(function() {
+        console.log('Loading PHP script dynamically');
+        loadPHPScript(function() {
+            console.log('downloading php.wasm');
+            loadPhpWasm(function () {
+                console.log('successfully downloaded php.wasm to reuse');
+                /** This fills the wasm memory with 0s, so that the next fresh program startup succeeds */
+                generateNewPHPModule().then(function (newPHPModule) {
+                    console.log('successfully initialized php module');
+                    phpModule = newPHPModule
+                    isUsable = true;
+                    init();
+                    initPluginModal();
+                    initAstVisualization();
 
-                // Auto-analyze if code was provided in URL
-                if ((query.has('c') || query.has('code')) && editor.getValue().trim()) {
-                    console.log('Auto-analyzing from URL parameter');
-                    setTimeout(function() {
-                        if (isUsable) {
-                            analyze_button.click();
-                        }
-                    }, 100);
-                }
-            }).catch(function (error) {
-                showWebAssemblyError('Failed to initialize WebAssembly module: ' + error.message);
+                    // Auto-analyze if code was provided in URL
+                    if ((query.has('c') || query.has('code')) && editor.getValue().trim()) {
+                        console.log('Auto-analyzing from URL parameter');
+                        setTimeout(function() {
+                            if (isUsable) {
+                                analyze_button.click();
+                            }
+                        }, 100);
+                    }
+                }).catch(function (error) {
+                    showWebAssemblyError('Failed to initialize WebAssembly module: ' + error.message);
+                });
             });
         });
     });

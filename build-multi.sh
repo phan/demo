@@ -435,6 +435,31 @@ echo "  - phan-5.5.1.phar"
 echo "  - phan-5.5.2.phar"
 echo "  - phan-v6-dev.phar"
 echo ""
+
+# Generate manifest.json with phar file mtimes for cache-busting
+echo "Generating manifest.json with phar mtimes..."
+{
+    echo "{"
+    first=true
+    for phar in phan-*.phar; do
+        if [ -f "$phar" ]; then
+            # Get mtime in seconds since epoch
+            mtime=$(stat -c %Y "$phar" 2>/dev/null || stat -f %m "$phar" 2>/dev/null)
+            if [ -n "$mtime" ]; then
+                if [ "$first" = false ]; then
+                    echo ","
+                fi
+                echo -n "  \"$phar\": $mtime"
+                first=false
+            fi
+        fi
+    done
+    echo ""
+    echo "}"
+} > manifest.json
+
+echo "Generated manifest.json"
+echo ""
 echo "Next steps:"
 echo "1. Update static/demo.js to dynamically load .phar files"
 echo "2. Test with: python3 -m http.server --bind 127.0.0.1 8081"
