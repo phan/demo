@@ -22,7 +22,7 @@ into WebAssembly that runs in modern browsers (Firefox/Chrome, requires 4GB+ RAM
 The project now supports building multiple PHP and Phan version combinations. Users can select their desired versions via dropdown menus in the UI.
 
 **Supported versions:**
-- PHP: 8.1, 8.2, 8.3, 8.4, 8.5 RC1
+- PHP: 8.1, 8.2, 8.3, 8.4, 8.5 RC2
 - Phan: 5.5.1, 5.5.2, v6-dev (dynamically loaded)
 - php-ast: 1.1.2, 1.1.3 (user-selectable)
 
@@ -46,7 +46,7 @@ docker run --rm -v $(pwd):/src emscripten/emsdk bash -c 'apt update && DEBIAN_FR
 The multi-version build process (`build-multi.sh`):
 1. Downloads Phan 5.5.1 and 5.5.2 from GitHub releases
 2. Builds Phan v6-dev from v6 branch using `internal/make_phar`
-3. For each PHP version (8.1, 8.2, 8.3, 8.4, 8.5 RC1):
+3. For each PHP version (8.1, 8.2, 8.3, 8.4, 8.5 RC2):
    - For each compatible php-ast version (1.1.2, 1.1.3):
        - Downloads PHP source
        - Applies version-specific error handler patch (`main-8.{1,2,3,4,5}.c`)
@@ -146,7 +146,7 @@ After building, test locally by:
 ## Version Configuration
 
 **PHP versions** are configured in `build-multi.sh`:
-- Array: `PHP_VERSIONS=("8.1.33" "8.2.29" "8.3.26" "8.4.13" "8.5.0RC1")`
+- Array: `PHP_VERSIONS=("8.1.33" "8.2.29" "8.3.26" "8.4.13" "8.5.0RC2")`
 - Also update dropdown in `index.html` `<select id="php-version">`
 
 **Phan versions** are configured in `build-multi.sh`:

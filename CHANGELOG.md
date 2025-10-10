@@ -3,7 +3,7 @@
 ## 2025-10-04 - Multi-Version Support Implementation
 
 ### Added
-- Multi-version build system supporting 5 PHP versions (8.1, 8.2, 8.3, 8.4, 8.5 RC1)
+- Multi-version build system supporting 5 PHP versions (8.1, 8.2, 8.3, 8.4, 8.5 RC2)
 - `build-multi.sh` - New build script for creating all PHP+ast version combinations
 - PHP version selector dropdown in web UI
 - Phan version selector dropdown in web UI (currently only 5.5.1 available)
@@ -45,7 +45,7 @@
   - Status: Under investigation
 
 ### Build Details
-- PHP versions: 8.1.33, 8.2.29, 8.3.26, 8.4.13, 8.5.0RC1
+- PHP versions: 8.1.33, 8.2.29, 8.3.26, 8.4.13, 8.5.0RC2
 - Phan version: 5.5.1 (stable)
 - php-ast versions: 1.1.2, 1.1.3
 - Total builds: 9 (PHP 8.1-8.4 with both ast versions + PHP 8.5 with ast 1.1.3 only)

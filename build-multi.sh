@@ -6,7 +6,7 @@
 set -xeu
 
 # Configuration
-PHP_VERSIONS=("8.1.33" "8.2.29" "8.3.26" "8.4.13" "8.5.0RC1")
+PHP_VERSIONS=("8.1.33" "8.2.29" "8.3.26" "8.4.13" "8.5.0RC2")
 # AST versions to build
 AST_VERSIONS=("1.1.2" "1.1.3")
 
@@ -229,6 +229,7 @@ build_php_ast_combo() {
                 wget "https://downloads.php.net/~daniels/${php_path}.tar.xz" || \
                 wget "https://downloads.php.net/~jakub/${php_path}.tar.xz" || \
                 wget "https://downloads.php.net/~saki/${php_path}.tar.xz" || \
+                wget "https://downloads.php.net/~edorian/${php_path}.tar.xz" || \
                 wget "https://www.php.net/distributions/${php_path}.tar.xz"
             else
                 wget "https://www.php.net/distributions/${php_path}.tar.xz"

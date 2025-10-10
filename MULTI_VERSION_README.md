@@ -13,7 +13,7 @@ The phan-demo system has been enhanced to support multiple PHP and Phan version 
 - 8.2.27
 - 8.3.16
 - 8.4.2
-- 8.5.0RC1
+- 8.5.0RC2
 
 ### Phan Versions
 - 5.5.1 (latest stable release)
@@ -26,7 +26,7 @@ The phan-demo system has been enhanced to support multiple PHP and Phan version 
 
 New multi-version build script that:
 - Downloads Phan 5.5.1 release
-- Builds each PHP version (8.1, 8.2, 8.3, 8.4, 8.5 RC1) with Phan 5.5.1
+- Builds each PHP version (8.1, 8.2, 8.3, 8.4, 8.5 RC2) with Phan 5.5.1
 - Outputs to `builds/php-{VERSION}/phan-{VERSION}/` directory structure
 - Handles special cases like PHP RC versions from maintainer directories
 - Total of 5 builds (5 PHP versions × 1 Phan version)
@@ -123,7 +123,7 @@ docker run --rm -v $(pwd):/src emscripten/emsdk bash -c 'apt update && DEBIAN_FR
 
 1. Update `build-multi.sh`:
    ```bash
-   PHP_VERSIONS=("8.1.31" "8.2.27" "8.3.16" "8.4.2" "8.5.0RC1" "8.6.0beta1")
+   PHP_VERSIONS=("8.1.31" "8.2.27" "8.3.16" "8.4.2" "8.5.0RC2" "8.6.0beta1")
    ```
 
 2. Update `index.html`:
