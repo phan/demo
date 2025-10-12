@@ -1728,6 +1728,8 @@ function initAstVisualization() {
             }
             phpModule = null;
             phpModuleDidLoad = false;
+            // Clear cached phar records since the module will be re-created
+            loadedPharFiles = {};
             enableButtons();
             ast_button.textContent = "AST";
             isUsable = true;

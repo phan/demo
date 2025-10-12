@@ -73,9 +73,11 @@ static void pib_report_exception(zend_object *ex) {
         zval rv;
 		zend_string *message = zval_get_string(GET_PROPERTY_SILENT(&exception, ZEND_STR_MESSAGE));
         fprintf(stderr, "Uncaught throwable '%s': %s\n", ZSTR_VAL(ce_exception->name), ZSTR_VAL(message));
+        zend_string_release(message);
 		zend_string *file = zval_get_string(GET_PROPERTY_SILENT(&exception, ZEND_STR_FILE));
 		zend_long line = zval_get_long(GET_PROPERTY_SILENT(&exception, ZEND_STR_LINE));
         fprintf(stderr, "At %s:%d\n", ZSTR_VAL(file), line);
+        zend_string_release(file);
         /*
         // Can't get this to work at the end of execution.
         if (instanceof_function(ce_exception, zend_ce_throwable)) {
