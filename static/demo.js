@@ -1701,19 +1701,29 @@ function initAstVisualization() {
 
             if (ret == 0 && combinedHTMLOutput) {
                 try {
-                    var astData = JSON.parse(combinedHTMLOutput);
-                    console.log('AST data:', astData);
+                    // Strip stderr output (wrapped in <span class="stderr">) before parsing JSON
+                    var cleanOutput = combinedHTMLOutput.replace(/<span class="stderr">.*?<\/span>\n?/gs, '').trim();
 
-                    // Render in output area
-                    renderAstVisualization(astData);
+                    if (!cleanOutput) {
+                        console.error('No JSON output after filtering stderr');
+                        output_area.innerText = 'Failed to generate AST. No output received.';
+                    } else {
+                        var astData = JSON.parse(cleanOutput);
+                        console.log('AST data:', astData);
 
-                    // Set up cursor tracking
-                    editor.selection.on('changeCursor', highlightAstNodesFromEditor);
-                    highlightAstNodesFromEditor(); // Initial highlight
+                        // Render in output area
+                        renderAstVisualization(astData);
+
+                        // Set up cursor tracking
+                        editor.selection.on('changeCursor', highlightAstNodesFromEditor);
+                        highlightAstNodesFromEditor(); // Initial highlight
+                    }
 
                 } catch (e) {
                     console.error('Failed to parse AST JSON:', e);
-                    output_area.innerText = 'Failed to parse AST data: ' + e.message;
+                    console.error('Raw output:', combinedHTMLOutput);
+                    console.error('Cleaned output:', cleanOutput);
+                    output_area.innerText = 'Failed to parse AST data: ' + e.message + '\n\nCheck browser console for details.';
                 }
             } else {
                 console.error('AST generation failed or no output');
@@ -1813,6 +1823,8 @@ function initAstVisualization() {
                     if (line.match(/^filename:\s+PIB\s*$/)) return;
                     // Remove "function name: (null)" lines
                     if (line.match(/^function name:\s+\(null\)\s*$/)) return;
+                    // Remove PHP deprecation warnings and errors
+                    if (line.match(/^(Deprecated|Warning|Notice|Fatal error|Parse error):/)) return;
 
                     // Check if this is an opcode line with a line number
                     // Format: "    6     0*       NEW ..."
