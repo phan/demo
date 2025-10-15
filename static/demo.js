@@ -1815,16 +1815,21 @@ function initAstVisualization() {
                 var text = temp.textContent || temp.innerText;
 
                 // Filter and parse VLD output
+                // First, strip out all PHP error/warning messages (which may span multiple lines)
+                // Match lines starting with error types and any continuation lines (lines containing " in PIB on line")
+                text = text.replace(/^(Deprecated|Warning|Notice|Fatal error|Parse error):.*$/gm, '');
+                text = text.replace(/^.*\s+in PIB on line \d+.*$/gm, '');
+
                 var lines = text.split('\n');
                 var html = '';
 
                 lines.forEach(function(line) {
+                    // Skip empty lines
+                    if (line.trim() === '') return;
                     // Remove "filename: PIB" lines
                     if (line.match(/^filename:\s+PIB\s*$/)) return;
                     // Remove "function name: (null)" lines
                     if (line.match(/^function name:\s+\(null\)\s*$/)) return;
-                    // Remove PHP deprecation warnings and errors
-                    if (line.match(/^(Deprecated|Warning|Notice|Fatal error|Parse error):/)) return;
 
                     // Check if this is an opcode line with a line number
                     // Format: "    6     0*       NEW ..."
