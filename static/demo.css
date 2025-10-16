@@ -198,10 +198,12 @@ h1 {
 .editor-buttons {
     display: flex;
     gap: 1em;
+    align-items: center;
 }
 
 .button-wrapper {
     display: inline-block;
+    vertical-align: middle;
 }
 
 #run, #analyze {
@@ -537,7 +539,8 @@ h1 {
 }
 
 .configure-btn {
-    padding: 0.6em 1.2em;
+    height: 3.2em;
+    padding: 0 1.2em;
     font-size: 0.95em;
     font-weight: 600;
     border: 2px solid var(--text-tertiary);
@@ -547,6 +550,10 @@ h1 {
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
 }
 
 .configure-btn:hover {
@@ -621,12 +628,25 @@ h1 {
     position: relative;
 }
 
-#ast-canvas {
+#ast-canvas-wrapper {
     width: 100%;
     height: 100%;
+    overflow: auto;
+    position: relative;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+}
+
+#ast-canvas-wrapper::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+}
+
+#ast-canvas {
+    min-width: 100%;
+    min-height: 100%;
     background: var(--output-bg);
     position: relative;
-    overflow: hidden;
+    display: inline-block;
 }
 
 /* AST Zoom Controls */
@@ -895,6 +915,81 @@ h1 {
     color: var(--text-primary);
 }
 
+/* Loading indicator styles */
+#loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--modal-overlay);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    animation: fadeIn 0.2s;
+}
+
+#loading-overlay.show {
+    display: flex;
+}
+
+.loading-content {
+    background: var(--bg-primary);
+    padding: 2.5em;
+    border-radius: 12px;
+    text-align: center;
+    min-width: 320px;
+    max-width: 400px;
+    box-shadow: 0 10px 40px var(--shadow-color-strong);
+}
+
+.spinner {
+    border: 4px solid rgba(13, 110, 253, 0.1);
+    border-left-color: #0d6efd;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1.5em;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+#loading-message {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1em;
+    min-height: 1.5em;
+}
+
+.loading-progress {
+    width: 100%;
+    height: 6px;
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+
+#loading-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #0d6efd, #0b5ed7);
+    transition: width 0.3s ease;
+    border-radius: 3px;
+    width: 0%;
+}
+
+#loading-percent {
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    margin-top: 0.75em;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
 /* Responsive design for narrower screens */
 @media (max-width: 1600px) {
     .playground-header {
@@ -935,4 +1030,348 @@ h1 {
     .configure-btn {
         min-width: 140px;
     }
+}
+
+/* File tabs styles */
+.editor-tabs {
+    display: flex;
+    align-items: center;
+    background: var(--bg-secondary);
+    border-bottom: 2px solid var(--border-color);
+    padding: 0.5em 0.5em 0 0.5em;
+    gap: 0.5em;
+}
+
+.tabs-container {
+    display: flex;
+    gap: 0.25em;
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+}
+
+.tabs-container::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+}
+
+.file-tab {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.5em 0.75em;
+    background: var(--bg-tertiary);
+    border: 1px solid transparent;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    min-width: 80px;
+}
+
+.file-tab:hover {
+    background: var(--bg-primary);
+    border-color: var(--border-color);
+}
+
+.file-tab.active {
+    background: var(--bg-primary);
+    border-color: var(--border-color);
+    border-bottom-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: -2px;
+    padding-bottom: calc(0.5em + 2px);
+}
+
+.tab-name {
+    user-select: none;
+    cursor: text;
+    padding: 0.1em 0.2em;
+    border-radius: 3px;
+    transition: background 0.2s;
+}
+
+.tab-name:hover {
+    background: rgba(13, 110, 253, 0.1);
+}
+
+.tab-name-edit {
+    background: var(--bg-primary);
+    border: 2px solid #0d6efd;
+    border-radius: 4px;
+    padding: 0.25em 0.5em;
+    font-size: 0.9em;
+    font-family: inherit;
+    color: var(--text-primary);
+    outline: none;
+    min-width: 80px;
+    max-width: 200px;
+}
+
+.tab-close {
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 1.1em;
+    line-height: 1;
+    padding: 0;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+}
+
+.tab-close:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.add-tab-btn {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 1.2em;
+    font-weight: bold;
+    line-height: 1;
+    padding: 0.4em 0.6em;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 32px;
+    height: 32px;
+}
+
+.add-tab-btn:hover:not(:disabled) {
+    background: var(--bg-secondary);
+    border-color: #0d6efd;
+    color: #0d6efd;
+}
+
+.add-tab-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Adjust editor to account for tabs */
+.playground-editor #editor {
+    top: 44px;
+}
+
+/* GitHub Auth UI */
+.auth-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    vertical-align: middle;
+    line-height: 1;
+}
+
+#github-user {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    height: 3.2em;
+    padding: 0 0.8em;
+    background: var(--bg-primary);
+    border: 2px solid #0d6efd;
+    border-radius: 6px;
+    font-size: 0.9em;
+    box-sizing: border-box;
+    transition: all 0.2s;
+}
+
+#github-user:hover {
+    background: var(--bg-secondary);
+    border-color: #0b5ed7;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(13, 110, 253, 0.25);
+}
+
+.user-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+}
+
+.username {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-tertiary);
+    font-size: 1.2em;
+    line-height: 1;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    transition: all 0.2s;
+}
+
+.icon-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+/* Toast notifications */
+.toast {
+    position: fixed;
+    bottom: 2em;
+    right: 2em;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 1em 1.5em;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px var(--shadow-color-strong);
+    border: 2px solid var(--border-color);
+    font-size: 0.95em;
+    font-weight: 600;
+    z-index: 10001;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+    pointer-events: none;
+    max-width: 400px;
+}
+
+.toast-show {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.toast-success {
+    border-color: #198754;
+    background: linear-gradient(135deg, var(--bg-primary) 0%, rgba(25, 135, 84, 0.1) 100%);
+}
+
+.toast-error {
+    border-color: #dc3545;
+    background: linear-gradient(135deg, var(--bg-primary) 0%, rgba(220, 53, 69, 0.1) 100%);
+}
+
+/* Save Gist button disabled state */
+#share-gist:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#share-gist:disabled:hover {
+    border-color: var(--text-tertiary);
+    color: var(--text-secondary);
+    background: var(--bg-primary);
+}
+
+/* Gist Browser Modal */
+.gist-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75em;
+}
+
+.gist-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1em;
+    padding: 1em;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.gist-item:hover {
+    border-color: #0d6efd;
+    background: var(--bg-primary);
+}
+
+.gist-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.gist-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.gist-description {
+    font-weight: 600;
+    font-size: 1em;
+    color: var(--text-primary);
+    margin-bottom: 0.5em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gist-description.empty {
+    color: var(--text-tertiary);
+    font-style: italic;
+}
+
+.gist-files {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    margin-bottom: 0.25em;
+}
+
+.gist-meta {
+    font-size: 0.8em;
+    color: var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+}
+
+.gist-share-link {
+    cursor: pointer;
+    font-size: 1.2em;
+    transition: transform 0.2s;
+    display: inline-flex;
+    align-items: center;
+}
+
+.gist-share-link:hover {
+    transform: scale(1.2);
+}
+
+.gist-loading {
+    text-align: center;
+    padding: 2em;
+    color: var(--text-secondary);
+    font-size: 1em;
+}
+
+.gist-empty {
+    text-align: center;
+    padding: 3em 2em;
+    color: var(--text-secondary);
+    font-size: 1em;
+}
+
+.gist-empty-icon {
+    font-size: 3em;
+    margin-bottom: 0.5em;
+    opacity: 0.3;
 }

@@ -17,6 +17,8 @@
     <script src="//cdnjs.cloudflare.com/ajax/libs/jointjs/3.7.1/joint.min.js"></script>
     <link rel="stylesheet" type="text/css" href="static/demo.css" />
     <link rel="shortcut icon" href="favicon.ico" />
+    <!-- GitHub Gist Integration -->
+    <script type="text/javascript" src="static/gist-auth.js"></script>
 </head>
 
 <body>
@@ -63,6 +65,14 @@
                 <div class="button-wrapper">
                     <button id="share-link" class="configure-btn" title="Copy shareable link">📋 Share</button>
                 </div>
+                <div class="button-wrapper auth-status">
+                    <button id="github-login" class="configure-btn" title="Login with GitHub to use gist for larger demos">🔑 GitHub</button>
+                    <div id="github-user" style="display: none;">
+                        <img src="" alt="User avatar" class="user-avatar">
+                        <span class="username"></span>
+                        <button id="github-logout" class="icon-btn" title="Logout">×</button>
+                    </div>
+                </div>
                 <div class="button-wrapper">
                     <button id="analyze" title="Analyze PHP Code with Phan" class="disabled" disabled="disabled">Loading...</button>
                 </div>
@@ -79,6 +89,15 @@
         </div>
         <div class="playground-split-vertical">
             <div class="playground-editor">
+                <div class="editor-tabs">
+                    <div class="tabs-container" id="file-tabs">
+                        <div class="file-tab active" data-file-index="0">
+                            <span class="tab-name">file1.php</span>
+                        </div>
+                    </div>
+                    <button id="add-file-tab" class="add-tab-btn" title="Add new file (max 5)">+</button>
+                    <button id="new-demo-btn" class="add-tab-btn" title="Create a new demo">×</button>
+                </div>
                 <div id="editor"></div>
             </div>
             <pre id="output"></pre>
@@ -301,6 +320,18 @@ class MyClass {
 }
 demo(2, new SplObjectStorage());</textarea>
 
+    <!-- Loading Indicator -->
+    <div id="loading-overlay">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <div id="loading-message">Initializing...</div>
+            <div class="loading-progress">
+                <div id="loading-bar"></div>
+            </div>
+            <div id="loading-percent"></div>
+        </div>
+    </div>
+
     <!-- Plugin Configuration Modal -->
     <div id="plugin-modal" class="modal">
         <div class="modal-content">
@@ -327,6 +358,7 @@ demo(2, new SplObjectStorage());</textarea>
         </div>
     </div>
 
+    <script type="text/javascript" src="static/loading.js"></script>
     <script type="text/javascript" src="static/demo.js"></script>
 </body>
 </html>
