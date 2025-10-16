@@ -8,6 +8,12 @@ editor.session.setUseWorker(false);  // Disable syntax validation - we use Phan 
 editor.setShowPrintMargin(false);
 editor.setFontSize(18);
 
+// Track changes for gist updates
+window.hasUnsavedChanges = false;
+editor.session.on('change', function() {
+    window.hasUnsavedChanges = true;
+});
+
 var default_code = "<?php\n" + document.getElementById('features_example').innerText;
 
 var query = new URLSearchParams(document.location.search);
@@ -16,38 +22,43 @@ var analyze_button = document.getElementById('analyze');
 var output_area = document.getElementById('output');
 var isUsable = false;
 
-// Handle compressed code parameter
+// Handle compressed code parameter and gist loading
 var initial_code = '';
-if (query.has('c')) {
-    // Compressed code
+var initial_files = null;
+var hasUrlCode = false;
+var loadedGistId = null;
+var loadedGistRevision = null;
+
+// Check for gist ID first (highest priority)
+if (query.has('gist')) {
+    var gistId = query.get('gist');
+    var gistRevision = query.get('rev') || null; // Optional revision SHA
+    loadedGistId = gistId;
+    loadedGistRevision = gistRevision;
+    // Gist will be loaded asynchronously in init() after the page is ready
+    console.log('Will load gist:', gistId, gistRevision ? `(revision: ${gistRevision})` : '');
+} else if (query.has('files')) {
+    // Check for multi-file format (new format)
+    try {
+        var filesJson = LZString.decompressFromEncodedURIComponent(query.get('files'));
+        initial_files = JSON.parse(filesJson);
+        hasUrlCode = true;
+        console.log('Loaded multi-file from URL:', initial_files);
+    } catch (e) {
+        console.error('Failed to decompress multi-file data:', e);
+    }
+} else if (query.has('c')) {
+    // Single file compressed code (legacy)
     try {
         initial_code = LZString.decompressFromEncodedURIComponent(query.get('c'));
+        hasUrlCode = true;
     } catch (e) {
         console.error('Failed to decompress code:', e);
     }
 } else if (query.has('code')) {
     // Legacy uncompressed code
     initial_code = query.get('code');
-}
-
-if (initial_code && initial_code != default_code) {
-    editor.setValue(initial_code, -1);
-} else {
-    editor.setValue(default_code, -1);
-    // Pre-render the output of the demo to show the types of issues Phan is capable of detecting.
-    output_area.innerHTML =
-        '<p><span class="phan_file">input</span>:<span class="phan_line">6</span>: <span class="phan_issuetype_critical">PhanUndeclaredClassMethod</span> Call to method <span class="phan_method">__construct</span> from undeclared class <span class="phan_class">\\my_class</span> (<span class="phan_suggestion">Did you mean class \\MyClass</span>)</p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">10</span>: <span class="phan_issuetype_critical">PhanTypeMismatchArgumentInternalReal</span> Argument <span class="phan_index">1</span> (<span class="phan_parameter">$object</span>) is <span class="phan_code">$cond</span> of type <span class="phan_type">bool</span><span class="phan_details"></span> but <span class="phan_functionlike">\\SplObjectStorage::attach()</span> takes <span class="phan_type">object</span><span class="phan_details"></span></p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">11</span>: <span class="phan_issuetype_critical">PhanUndeclaredMethod</span> Call to undeclared method <span class="phan_method">\\SplObjectStorage::atach</span> (<span class="phan_suggestion">Did you mean expr-&gt;attach()</span>)</p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">12</span>: <span class="phan_issuetype_critical">PhanParamTooManyInternal</span> Call with <span class="phan_count">3</span> arg(s) to <span class="phan_functionlike">\\SplObjectStorage::attach(object $object, $info = null)</span> which only takes <span class="phan_count">2</span> arg(s). This is an ArgumentCountError for internal functions in PHP 8.0+.</p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">13</span>: <span class="phan_issuetype_normal">PhanTypeMismatchArgument</span> Argument <span class="phan_index">1</span> (<span class="phan_parameter">$x</span>) is <span class="phan_code">$argc</span> of type <span class="phan_type">int</span> but <span class="phan_functionlike">\\MyClass::__construct()</span> takes <span class="phan_type">?string</span> defined at <span class="phan_file">input</span>:<span class="phan_line">25</span></p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">19</span>: <span class="phan_issuetype">PhanRedundantCondition</span> Redundant attempt to cast <span class="phan_code">$cond</span> of type <span class="phan_type">bool</span> to <span class="phan_type">bool</span></p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">19</span>: <span class="phan_issuetype_normal">PhanUnusedVariable</span> Unused definition of variable <span class="phan_variable">$always_true</span></p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">20</span>: <span class="phan_issuetype_normal">PhanTypeSuspiciousStringExpression</span> Suspicious type <span class="phan_type">null=</span> of a variable or expression <span class="phan_code">$argv</span> used to build a string. (Expected type to be able to cast to a string)</p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">20</span>: <span class="phan_issuetype_normal">PhanUndeclaredVariable</span> Variable <span class="phan_variable">$argv</span> is undeclared (<span class="phan_suggestion">Did you mean $arg or $argc or (global $argv)</span>)</p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">21</span>: <span class="phan_issuetype_critical">PhanTypeMismatchReturnReal</span> Returning <span class="phan_code">$arg</span> of type <span class="phan_type">\\SplObjectStorage</span><span class="phan_details"></span> but <span class="phan_functionlike">demo()</span> is declared to return <span class="phan_type">?int</span><span class="phan_details"></span></p>' +
-	'<p><span class="phan_file">input</span>:<span class="phan_line">25</span>: <span class="phan_issuetype_normal">PhanDeprecatedImplicitNullableParam</span> Implicit nullable parameters (<span class="phan_type">string</span> <span class="phan_parameter">$x</span> = null) have been deprecated in PHP 8.4</p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">27</span>: <span class="phan_issuetype_normal">PhanUndeclaredProperty</span> Reference to undeclared property <span class="phan_property">\\MyClass-&gt;x</span></p>';
+    hasUrlCode = true;
 }
 
 var phpModule;
@@ -59,18 +70,359 @@ var currentPhanVersion = '5.5.2';  // default
 var currentAstVersion = '1.1.3';  // default (matches HTML)
 var shouldAutoAnalyze = false;
 
+// Multi-file management - initialize with default before loading from localStorage
+var files = [
+    {name: 'file1.php', content: default_code}
+];
+var currentFileIndex = 0;
+var MAX_FILES = 5;
+
+// localStorage persistence functions
+function saveFilesToLocalStorage() {
+    try {
+        localStorage.setItem('phan-demo-files', JSON.stringify(files));
+        localStorage.setItem('phan-demo-current-file-index', currentFileIndex.toString());
+        console.log('Saved files to localStorage');
+    } catch (e) {
+        console.error('Failed to save files to localStorage:', e);
+    }
+}
+
+function loadFilesFromLocalStorage() {
+    try {
+        var savedFiles = localStorage.getItem('phan-demo-files');
+        var savedIndex = localStorage.getItem('phan-demo-current-file-index');
+
+        if (savedFiles) {
+            var parsedFiles = JSON.parse(savedFiles);
+            // Validate the loaded data
+            if (Array.isArray(parsedFiles) && parsedFiles.length > 0) {
+                // Validate each file has required properties
+                var isValid = parsedFiles.every(function(file) {
+                    return file && typeof file.name === 'string' && typeof file.content === 'string';
+                });
+
+                if (isValid) {
+                    files = parsedFiles;
+                    console.log('Loaded files from localStorage:', files);
+                } else {
+                    console.warn('Invalid file data in localStorage, using defaults');
+                }
+            }
+        }
+
+        if (savedIndex !== null) {
+            var index = parseInt(savedIndex);
+            if (!isNaN(index) && index >= 0 && index < files.length) {
+                currentFileIndex = index;
+                console.log('Loaded current file index from localStorage:', currentFileIndex);
+            }
+        }
+    } catch (e) {
+        console.error('Failed to load files from localStorage:', e);
+    }
+}
+
+// File management functions
+function saveCurrentFile() {
+    files[currentFileIndex].content = editor.getValue();
+    saveFilesToLocalStorage();
+}
+
+function switchToFile(index) {
+    if (index < 0 || index >= files.length) return;
+
+    // Save current file content
+    saveCurrentFile();
+
+    // Switch to new file
+    currentFileIndex = index;
+    editor.setValue(files[index].content, -1);
+
+    // Update tab UI
+    updateFileTabs();
+
+    // Clear AST/Opcode views when switching files since they're stale
+    // (they show analysis of all files, not just the current one)
+    if (output_area.classList.contains('ast-view') || output_area.classList.contains('opcode-view')) {
+        output_area.innerHTML = '';
+        output_area.classList.remove('ast-view');
+        output_area.classList.remove('opcode-view');
+
+        // Remove AST cursor tracking if active
+        if (window.highlightAstNodesFromEditor) {
+            editor.selection.removeListener('changeCursor', window.highlightAstNodesFromEditor);
+        }
+        if (currentEditorHighlightFromAst) {
+            editor.session.removeMarker(currentEditorHighlightFromAst);
+            currentEditorHighlightFromAst = null;
+        }
+
+        // Remove opcode cursor tracking if active
+        if (window.highlightOpcodesForCurrentLine) {
+            editor.selection.removeListener('changeCursor', window.highlightOpcodesForCurrentLine);
+            window.highlightOpcodesForCurrentLine = null;
+        }
+    }
+
+    // Update error highlights for the new file
+    if (window.highlightErrorsForCurrentLine) {
+        window.highlightErrorsForCurrentLine();
+    }
+}
+
+function addNewFile() {
+    if (files.length >= MAX_FILES) return;
+
+    // Save current file
+    saveCurrentFile();
+
+    // Create new file
+    var newIndex = files.length + 1;
+    files.push({
+        name: 'file' + newIndex + '.php',
+        content: '<?php\n\n'
+    });
+
+    // Save to localStorage
+    saveFilesToLocalStorage();
+
+    // Switch to new file
+    switchToFile(files.length - 1);
+}
+
+function removeFile(index) {
+    if (files.length === 1) return; // Can't remove last file
+
+    files.splice(index, 1);
+
+    // Adjust current index if needed
+    if (currentFileIndex >= files.length) {
+        currentFileIndex = files.length - 1;
+    }
+
+    // Load the current file
+    editor.setValue(files[currentFileIndex].content, -1);
+
+    // Save to localStorage
+    saveFilesToLocalStorage();
+
+    // Update UI
+    updateFileTabs();
+}
+
+function updateFileTabs() {
+    var tabsContainer = document.getElementById('file-tabs');
+    var addButton = document.getElementById('add-file-tab');
+
+    // Clear existing tabs
+    tabsContainer.innerHTML = '';
+
+    // Create tabs
+    files.forEach(function(file, index) {
+        var tab = document.createElement('div');
+        tab.className = 'file-tab' + (index === currentFileIndex ? ' active' : '');
+        tab.setAttribute('data-file-index', index);
+
+        var tabName = document.createElement('span');
+        tabName.className = 'tab-name';
+        tabName.textContent = file.name;
+
+        // Store click timeout reference for canceling (shared between click and dblclick)
+        var clickTimeout;
+
+        // Click to switch files (but not when editing)
+        tab.onclick = function(e) {
+            // Don't switch if we're clicking on an input (editing)
+            if (e.target.tagName === 'INPUT') {
+                return;
+            }
+
+            // Delay the click to allow double-click to cancel it
+            clearTimeout(clickTimeout);
+            clickTimeout = setTimeout(function() {
+                switchToFile(index);
+            }, 250);
+        };
+
+        // Double-click to edit filename
+        tabName.ondblclick = function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            // Cancel any pending click events
+            clearTimeout(clickTimeout);
+            console.log('Double-click detected on tab', index);
+            startEditingFilename(index, tabName, tab);
+        };
+
+        tab.appendChild(tabName);
+
+        // Add close button (except for first file)
+        if (files.length > 1) {
+            var closeBtn = document.createElement('button');
+            closeBtn.className = 'tab-close';
+            closeBtn.innerHTML = '×';
+            closeBtn.onclick = function(e) {
+                e.stopPropagation();
+                removeFile(index);
+            };
+            tab.appendChild(closeBtn);
+        }
+
+        tabsContainer.appendChild(tab);
+    });
+
+    // Update add button state
+    addButton.disabled = files.length >= MAX_FILES;
+}
+
+function startEditingFilename(fileIndex, tabNameElement, tabElement) {
+    console.log('startEditingFilename called', fileIndex, tabNameElement);
+    var currentName = files[fileIndex].name;
+    console.log('Current name:', currentName);
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentName;
+    input.className = 'tab-name-edit';
+
+    // Temporarily disable tab switching while editing
+    var originalTabClick = tabElement.onclick;
+    tabElement.onclick = null;
+
+    // Replace span with input
+    console.log('Replacing span with input');
+    tabElement.replaceChild(input, tabNameElement);
+    console.log('Input replaced, focusing...');
+    input.focus();
+    input.select();
+
+    setTimeout(function() {
+        console.log('After 100ms, input still exists?', document.body.contains(input));
+        console.log('Input value:', input.value);
+    }, 100);
+
+    // Finish editing on blur or Enter
+    var isFinished = false;
+    var finishEditing = function(save) {
+        if (isFinished) return;
+        isFinished = true;
+
+        var newName = input.value.trim();
+
+        // Validate filename
+        if (save && newName && newName !== currentName) {
+            // Check for duplicates
+            var isDuplicate = files.some(function(file, idx) {
+                return idx !== fileIndex && file.name === newName;
+            });
+
+            if (isDuplicate) {
+                showToast('Filename already exists', 'error');
+                newName = currentName; // Revert
+            } else {
+                // Update filename
+                files[fileIndex].name = newName;
+                // Save to localStorage
+                saveFilesToLocalStorage();
+            }
+        } else if (!newName) {
+            // Empty name - revert
+            newName = currentName;
+        } else {
+            newName = currentName;
+        }
+
+        // Restore the tab name span
+        var newTabName = document.createElement('span');
+        newTabName.className = 'tab-name';
+        newTabName.textContent = newName;
+        newTabName.ondblclick = function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            startEditingFilename(fileIndex, newTabName, tabElement);
+        };
+        tabElement.replaceChild(newTabName, input);
+
+        // Restore tab click handler
+        tabElement.onclick = originalTabClick;
+    };
+
+    input.onblur = function() {
+        finishEditing(true);
+    };
+
+    input.onkeydown = function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            finishEditing(true);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            finishEditing(false);
+        }
+    };
+}
+
+// Initialize file tabs
+function initFileTabs() {
+    updateFileTabs();
+
+    // Add file button
+    document.getElementById('add-file-tab').addEventListener('click', addNewFile);
+
+    // New demo button
+    document.getElementById('new-demo-btn').addEventListener('click', function() {
+        // Confirm if user has unsaved work
+        if (files.length > 1 || files[0].content.trim() !== '<?php\n\n') {
+            if (!confirm('Start a new demo? This will clear all current files.')) {
+                return;
+            }
+        }
+
+        // Reset to single blank file
+        files = [{
+            name: 'file1.php',
+            content: '<?php\n\n'
+        }];
+        currentFileIndex = 0;
+
+        // Clear gist tracking
+        loadedGistId = null;
+        loadedGistRevision = null;
+
+        // Clear URL parameters
+        if (window.history.pushState) {
+            window.history.pushState({}, '', window.location.pathname);
+        }
+
+        // Clear localStorage
+        localStorage.removeItem('phan_demo_files');
+
+        // Update editor and tabs
+        editor.setValue(files[0].content, -1);
+        updateFileTabs();
+
+        // Put user in edit mode for the filename (after tabs are rebuilt)
+        setTimeout(function() {
+            var firstTab = document.querySelector('.file-tab');
+            var tabNameElement = firstTab.querySelector('.tab-name');
+            if (firstTab && tabNameElement) {
+                startEditingFilename(0, tabNameElement, firstTab);
+            }
+        }, 0);
+    });
+}
+
 // Dark mode toggle functionality
 (function() {
     const darkModeToggle = document.getElementById('dark-mode-toggle');
     const themeIcon = darkModeToggle.querySelector('.theme-icon');
     const htmlElement = document.documentElement;
 
-    // Check for saved theme preference or detect system preference
+    // Check for saved theme preference, default to light mode
     let currentTheme = localStorage.getItem('theme');
     if (!currentTheme) {
-        // No saved preference, use system preference
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        currentTheme = prefersDark ? 'dark' : 'light';
+        // No saved preference, default to light mode
+        currentTheme = 'light';
     }
 
     // Apply the theme
@@ -434,17 +786,24 @@ function disableButtons() {
 }
 
 function updateQueryParams(code) {
-    if (code == default_code) {
-        // Clear URL params for default code
+    // For default single-file code, clear URL params
+    if (files.length === 1 && code == default_code) {
         history.replaceState({}, document.title, window.location.pathname);
         return;
     }
 
     var url = new URLSearchParams();
 
-    // Add compressed code
-    var compressed = LZString.compressToEncodedURIComponent(code);
-    url.set('c', compressed);
+    // For multi-file, encode all files
+    if (files.length > 1) {
+        var filesJson = JSON.stringify(files);
+        var compressed = LZString.compressToEncodedURIComponent(filesJson);
+        url.set('files', compressed);
+    } else {
+        // For single file, use legacy format
+        var compressed = LZString.compressToEncodedURIComponent(code);
+        url.set('c', compressed);
+    }
 
     // Add version parameters
     url.set('php', currentPhpVersion);
@@ -634,8 +993,11 @@ function loadPhpWasm(cb) {
     phpWasmBinary = null;
     phpWasmData = null; // Not used anymore (no embedded files)
 
+    LoadingIndicator.show('Downloading PHP WebAssembly...', 20);
+
     fetchRemotePackage(currentVersionPath + 'php.wasm', function (data) {
         phpWasmBinary = data;
+        LoadingIndicator.update('PHP downloaded successfully', 50);
         // No php.data to load - phars are loaded dynamically
         cb(phpWasmBinary);
     });
@@ -681,6 +1043,10 @@ function reloadPHPModule() {
                 phpModule = newPHPModule;
                 phpModuleDidLoad = true;
                 isUsable = true;
+                LoadingIndicator.update('Ready!', 100);
+                setTimeout(function() {
+                    LoadingIndicator.hide();
+                }, 500);
                 output_area.innerText = '';
                 enableButtons();
 
@@ -705,6 +1071,143 @@ function init() {
     // This is a monospace element without HTML.
     // output_area.innerText = "Click ANALYZE";
 
+    // Initialize auth UI (Device Flow doesn't use URL callbacks)
+    initAuthUI();
+
+    // Load from gist if specified (highest priority)
+    if (loadedGistId) {
+        loadGistById(loadedGistId, loadedGistRevision).then(function(gist) {
+            // Parse files from gist
+            initial_files = [];
+            var metadata = null;
+
+            // First pass: extract metadata
+            if (gist.files['phan-demo.json']) {
+                try {
+                    metadata = JSON.parse(gist.files['phan-demo.json'].content);
+                } catch (e) {
+                    console.error('Failed to parse gist metadata:', e);
+                }
+            }
+
+            // Second pass: load files in the correct order
+            if (metadata && metadata.fileOrder) {
+                // Use the saved file order
+                metadata.fileOrder.forEach(function(filename) {
+                    if (gist.files[filename]) {
+                        initial_files.push({
+                            name: filename,
+                            content: gist.files[filename].content
+                        });
+                    }
+                });
+            } else {
+                // Fallback: use object key order (for old gists without fileOrder)
+                Object.keys(gist.files).forEach(function(filename) {
+                    if (filename !== 'phan-demo.json') {
+                        initial_files.push({
+                            name: filename,
+                            content: gist.files[filename].content
+                        });
+                    }
+                });
+            }
+
+            if (initial_files.length > 0) {
+                files = initial_files;
+                currentFileIndex = 0;
+                hasUrlCode = true;
+                console.log('Loaded files from gist:', files);
+
+                // Apply metadata if present
+                if (metadata) {
+                    if (metadata.phpVersion) currentPhpVersion = metadata.phpVersion;
+                    if (metadata.phanVersion) currentPhanVersion = metadata.phanVersion;
+                    if (metadata.astVersion) currentAstVersion = metadata.astVersion;
+
+                    // Parse plugins if present
+                    if (metadata.plugins) {
+                        try {
+                            var pluginBits = BigInt(metadata.plugins);
+                            activePlugins = [];
+                            allPlugins.forEach(function(plugin, index) {
+                                if (pluginBits & (1n << BigInt(index))) {
+                                    activePlugins.push(plugin);
+                                }
+                            });
+                            console.log('Loaded plugins from gist metadata:', activePlugins);
+                        } catch (e) {
+                            console.error('Failed to parse plugins from gist:', e);
+                        }
+                    }
+                }
+
+                // Continue with normal initialization
+                continueInit();
+            }
+        }).catch(function(error) {
+            console.error('Failed to load gist:', error);
+            showToast('Failed to load gist: ' + error.message, 'error');
+            // Continue with normal initialization
+            continueInit();
+        });
+        return; // Wait for async gist loading
+    }
+
+    continueInit();
+}
+
+function continueInit() {
+    // Load files from localStorage first (unless URL has files)
+    if (!initial_files && !loadedGistId) {
+        loadFilesFromLocalStorage();
+    }
+
+    // If there are files in the URL, use those instead of localStorage
+    if (initial_files && Array.isArray(initial_files) && initial_files.length > 0) {
+        // Validate files from URL
+        var isValid = initial_files.every(function(file) {
+            return file && typeof file.name === 'string' && typeof file.content === 'string';
+        });
+        if (isValid) {
+            files = initial_files;
+            currentFileIndex = 0;
+            console.log('Loaded files from URL:', files);
+        }
+    }
+
+    // Ensure currentFileIndex is valid
+    if (currentFileIndex < 0 || currentFileIndex >= files.length) {
+        currentFileIndex = 0;
+    }
+
+    // If there's single-file code in the URL (legacy), use that for the current file
+    if (initial_code && initial_code != default_code && hasUrlCode && !initial_files) {
+        files[currentFileIndex].content = initial_code;
+        editor.setValue(initial_code, -1);
+    } else {
+        // Load the current file from the files array (which may have been loaded from localStorage or URL)
+        editor.setValue(files[currentFileIndex].content, -1);
+
+        // Only show the pre-rendered output if we're using the default example
+        if (files.length === 1 && files[0].content === default_code) {
+            // Pre-render the output of the demo to show the types of issues Phan is capable of detecting.
+            output_area.innerHTML =
+                '<p><span class="phan_file">input</span>:<span class="phan_line">6</span>: <span class="phan_issuetype_critical">PhanUndeclaredClassMethod</span> Call to method <span class="phan_method">__construct</span> from undeclared class <span class="phan_class">\\my_class</span> (<span class="phan_suggestion">Did you mean class \\MyClass</span>)</p>' +
+                '<p><span class="phan_file">input</span>:<span class="phan_line">10</span>: <span class="phan_issuetype_critical">PhanTypeMismatchArgumentInternalReal</span> Argument <span class="phan_index">1</span> (<span class="phan_parameter">$object</span>) is <span class="phan_code">$cond</span> of type <span class="phan_type">bool</span><span class="phan_details"></span> but <span class="phan_functionlike">\\SplObjectStorage::attach()</span> takes <span class="phan_type">object</span><span class="phan_details"></span></p>' +
+                '<p><span class="phan_file">input</span>:<span class="phan_line">11</span>: <span class="phan_issuetype_critical">PhanUndeclaredMethod</span> Call to undeclared method <span class="phan_method">\\SplObjectStorage::atach</span> (<span class="phan_suggestion">Did you mean expr-&gt;attach()</span>)</p>' +
+                '<p><span class="phan_file">input</span>:<span class="phan_line">12</span>: <span class="phan_issuetype_critical">PhanParamTooManyInternal</span> Call with <span class="phan_count">3</span> arg(s) to <span class="phan_functionlike">\\SplObjectStorage::attach(object $object, $info = null)</span> which only takes <span class="phan_count">2</span> arg(s). This is an ArgumentCountError for internal functions in PHP 8.0+.</p>' +
+                '<p><span class="phan_file">input</span>:<span class="phan_line">13</span>: <span class="phan_issuetype_normal">PhanTypeMismatchArgument</span> Argument <span class="phan_index">1</span> (<span class="phan_parameter">$x</span>) is <span class="phan_code">$argc</span> of type <span class="phan_type">int</span> but <span class="phan_functionlike">\\MyClass::__construct()</span> takes <span class="phan_type">?string</span> defined at <span class="phan_file">input</span>:<span class="phan_line">25</span></p>' +
+                '<p><span class="phan_file">input</span>:<span class="phan_line">19</span>: <span class="phan_issuetype">PhanRedundantCondition</span> Redundant attempt to cast <span class="phan_code">$cond</span> of type <span class="phan_type">bool</span> to <span class="phan_type">bool</span></p>' +
+                '<p><span class="phan_file">input</span>:<span class="phan_line">19</span>: <span class="phan_issuetype_normal">PhanUnusedVariable</span> Unused definition of variable <span class="phan_variable">$always_true</span></p>' +
+                '<p><span class="phan_file">input</span>:<span class="phan_line">20</span>: <span class="phan_issuetype_normal">PhanTypeSuspiciousStringExpression</span> Suspicious type <span class="phan_type">null=</span> of a variable or expression <span class="phan_code">$argv</span> used to build a string. (Expected type to be able to cast to a string)</p>' +
+                '<p><span class="phan_file">input</span>:<span class="phan_line">20</span>: <span class="phan_issuetype_normal">PhanUndeclaredVariable</span> Variable <span class="phan_variable">$argv</span> is undeclared (<span class="phan_suggestion">Did you mean $arg or $argc or (global $argv)</span>)</p>' +
+                '<p><span class="phan_file">input</span>:<span class="phan_line">21</span>: <span class="phan_issuetype_critical">PhanTypeMismatchReturnReal</span> Returning <span class="phan_code">$arg</span> of type <span class="phan_type">\\SplObjectStorage</span><span class="phan_details"></span> but <span class="phan_functionlike">demo()</span> is declared to return <span class="phan_type">?int</span><span class="phan_details"></span></p>' +
+                '<p><span class="phan_file">input</span>:<span class="phan_line">25</span>: <span class="phan_issuetype_normal">PhanDeprecatedImplicitNullableParam</span> Implicit nullable parameters (<span class="phan_type">string</span> <span class="phan_parameter">$x</span> = null) have been deprecated in PHP 8.4</p>' +
+                '<p><span class="phan_file">input</span>:<span class="phan_line">27</span>: <span class="phan_issuetype_normal">PhanUndeclaredProperty</span> Reference to undeclared property <span class="phan_property">\\MyClass-&gt;x</span></p>';
+        }
+    }
+
     // Set up version selectors
     var phpVersionSelect = document.getElementById('php-version');
     var phanVersionSelect = document.getElementById('phan-version');
@@ -720,6 +1223,7 @@ function init() {
         console.log('PHP version changed to:', currentPhpVersion);
         enforceAstConstraints();
         shouldAutoAnalyze = true;
+        window.hasUnsavedChanges = true;
         reloadPHPModule();
     });
 
@@ -729,6 +1233,7 @@ function init() {
         updatePhanVersionInfo();
         enforceAstConstraints();
         shouldAutoAnalyze = true;
+        window.hasUnsavedChanges = true;
         reloadPHPModule();
     });
 
@@ -736,6 +1241,7 @@ function init() {
         currentAstVersion = this.value;
         console.log('ast version changed to:', currentAstVersion);
         shouldAutoAnalyze = true;
+        window.hasUnsavedChanges = true;
         reloadPHPModule();
     });
 
@@ -743,53 +1249,233 @@ function init() {
     enforceAstConstraints();
     updatePhanVersionInfo();
 
+    // Initialize file tabs
+    initFileTabs();
+
     enableButtons();
 
-    // Share button
+    // Share button - Smart button that creates gist if logged in, otherwise compressed URL
     var shareButton = document.getElementById('share-link');
-    shareButton.addEventListener('click', function() {
-        var code = editor.getValue();
-        var url = new URL(window.location.href.split('?')[0]);
+    shareButton.addEventListener('click', async function() {
+        // Save current file first
+        saveCurrentFile();
 
-        // Add compressed code
-        var compressed = LZString.compressToEncodedURIComponent(code);
-        url.searchParams.set('c', compressed);
+        // Check if user is logged in
+        if (getAccessToken()) {
+            // User is logged in - create gist
+            try {
+                // Build gist data
+                var gistData = {
+                    description: 'Phan Demo - PHP ' + currentPhpVersion + ', Phan ' + currentPhanVersion,
+                    public: true,
+                    files: {}
+                };
 
-        // Add version parameters
-        url.searchParams.set('php', currentPhpVersion);
-        url.searchParams.set('phan', currentPhanVersion);
-        url.searchParams.set('ast', currentAstVersion);
+                // IMPORTANT: Add files in order - first file becomes the gist name on GitHub
+                // We need to build the files object with keys in the correct order
+                var orderedFiles = {};
 
-        // Encode active plugins as bitfield (using BigInt for 43+ plugins)
-        var pluginBits = 0n;
-        allPlugins.forEach(function(plugin, index) {
-            if (activePlugins.indexOf(plugin) !== -1) {
-                pluginBits |= (1n << BigInt(index));
+                // Add first file first (this becomes the gist display name)
+                if (files.length > 0) {
+                    orderedFiles[files[0].name] = { content: files[0].content };
+                }
+
+                // Add remaining files
+                for (var i = 1; i < files.length; i++) {
+                    orderedFiles[files[i].name] = { content: files[i].content };
+                }
+
+                // Add metadata file last
+                var pluginBits = 0n;
+                allPlugins.forEach(function(plugin, index) {
+                    if (activePlugins.indexOf(plugin) !== -1) {
+                        pluginBits |= (1n << BigInt(index));
+                    }
+                });
+
+                // Save file order to preserve it when loading
+                var fileOrder = files.map(function(file) {
+                    return file.name;
+                });
+
+                orderedFiles['phan-demo.json'] = {
+                    content: JSON.stringify({
+                        phpVersion: currentPhpVersion,
+                        phanVersion: currentPhanVersion,
+                        astVersion: currentAstVersion,
+                        plugins: pluginBits.toString(),
+                        fileOrder: fileOrder
+                    }, null, 2)
+                };
+
+                // Assign the ordered files object
+                gistData.files = orderedFiles;
+
+                // Create or update gist
+                var gist;
+                if (loadedGistId && !window.hasUnsavedChanges) {
+                    // No changes - just copy the existing link
+                    var url = new URL(window.location.origin + window.location.pathname);
+                    url.searchParams.set('gist', loadedGistId);
+                    if (loadedGistRevision) {
+                        url.searchParams.set('rev', loadedGistRevision);
+                    }
+
+                    navigator.clipboard.writeText(url.toString()).then(function() {
+                        showToast('No changes detected. Link copied to clipboard.', 'success');
+
+                        var originalText = shareButton.textContent;
+                        shareButton.textContent = '✓ Copied!';
+                        shareButton.style.background = '#198754';
+                        shareButton.style.color = 'white';
+                        shareButton.style.borderColor = '#198754';
+
+                        setTimeout(function() {
+                            shareButton.textContent = originalText;
+                            shareButton.style.background = '';
+                            shareButton.style.color = '';
+                            shareButton.style.borderColor = '';
+                        }, 2000);
+                    }).catch(function(err) {
+                        console.error('Failed to copy to clipboard:', err);
+                        showToast('Failed to copy link', 'error');
+                    });
+                    return;
+                } else if (loadedGistId) {
+                    // Update existing gist (creates a new revision)
+                    gist = await updateGist(loadedGistId, gistData);
+                    window.hasUnsavedChanges = false;
+                } else {
+                    // Create new gist
+                    gist = await createGist(gistData);
+                    window.hasUnsavedChanges = false;
+                }
+
+                // Build short URL with revision SHA
+                var url = new URL(window.location.origin + window.location.pathname);
+                url.searchParams.set('gist', gist.id);
+
+                // Include revision SHA if available (from gist history)
+                if (gist.history && gist.history.length > 0) {
+                    // Use the most recent version (first in history array)
+                    url.searchParams.set('rev', gist.history[0].version);
+                }
+
+                // Store the current gist ID for future updates
+                loadedGistId = gist.id;
+                if (gist.history && gist.history.length > 0) {
+                    loadedGistRevision = gist.history[0].version;
+                }
+
+                // Copy to clipboard
+                navigator.clipboard.writeText(url.toString()).then(function() {
+                    var message = loadedGistRevision
+                        ? '✓ Gist updated! Link copied to clipboard.'
+                        : '✓ Gist saved! Link copied to clipboard.';
+                    showToast(message, 'success');
+
+                    // Update button temporarily
+                    var originalText = shareButton.textContent;
+                    shareButton.textContent = '✓ Copied!';
+                    shareButton.style.background = '#198754';
+                    shareButton.style.color = 'white';
+                    shareButton.style.borderColor = '#198754';
+
+                    setTimeout(function() {
+                        shareButton.textContent = originalText;
+                        shareButton.style.background = '';
+                        shareButton.style.color = '';
+                        shareButton.style.borderColor = '';
+                    }, 2000);
+
+                    console.log('Shareable gist URL:', url.toString());
+                }).catch(function(err) {
+                    console.error('Failed to copy:', err);
+                    var shortUrl = '?gist=' + gist.id;
+                    showToast('Gist created! URL: ' + shortUrl, 'success');
+                });
+
+            } catch (error) {
+                console.error('Failed to create gist:', error);
+                showToast('Failed to create gist: ' + error.message, 'error');
             }
-        });
-        url.searchParams.set('plugins', pluginBits.toString());
+        } else {
+            // User not logged in - create compressed URL
+            var url = new URL(window.location.href.split('?')[0]);
 
-        // Copy to clipboard
-        var urlString = url.toString();
-        navigator.clipboard.writeText(urlString).then(function() {
-            // Visual feedback
-            var originalText = shareButton.textContent;
-            shareButton.textContent = '✓ Copied!';
-            shareButton.style.background = '#198754';
-            shareButton.style.color = 'white';
-            shareButton.style.borderColor = '#198754';
+            // For multi-file, encode all files as JSON
+            if (files.length > 1) {
+                var filesJson = JSON.stringify(files);
+                var compressed = LZString.compressToEncodedURIComponent(filesJson);
+                url.searchParams.set('files', compressed);
+            } else {
+                // For single file, use legacy format for backward compatibility
+                var code = files[0].content;
+                var compressed = LZString.compressToEncodedURIComponent(code);
+                url.searchParams.set('c', compressed);
+            }
 
-            setTimeout(function() {
-                shareButton.textContent = originalText;
-                shareButton.style.background = '';
-                shareButton.style.color = '';
-                shareButton.style.borderColor = '';
-            }, 2000);
-        }).catch(function(err) {
-            console.error('Failed to copy:', err);
-            alert('Failed to copy link. Please copy manually:\n\n' + urlString);
-        });
+            // Add version parameters
+            url.searchParams.set('php', currentPhpVersion);
+            url.searchParams.set('phan', currentPhanVersion);
+            url.searchParams.set('ast', currentAstVersion);
+
+            // Encode active plugins as bitfield (using BigInt for 43+ plugins)
+            var pluginBits = 0n;
+            allPlugins.forEach(function(plugin, index) {
+                if (activePlugins.indexOf(plugin) !== -1) {
+                    pluginBits |= (1n << BigInt(index));
+                }
+            });
+            url.searchParams.set('plugins', pluginBits.toString());
+
+            // Copy to clipboard
+            var urlString = url.toString();
+            navigator.clipboard.writeText(urlString).then(function() {
+                // Visual feedback
+                var originalText = shareButton.textContent;
+                shareButton.textContent = '✓ Copied!';
+                shareButton.style.background = '#198754';
+                shareButton.style.color = 'white';
+                shareButton.style.borderColor = '#198754';
+
+                setTimeout(function() {
+                    shareButton.textContent = originalText;
+                    shareButton.style.background = '';
+                    shareButton.style.color = '';
+                    shareButton.style.borderColor = '';
+                }, 2000);
+            }).catch(function(err) {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy link. Please copy manually:\n\n' + urlString);
+            });
+        }
     });
+
+    // GitHub login button
+    var loginButton = document.getElementById('github-login');
+    loginButton.addEventListener('click', function() {
+        initiateOAuthFlow();
+    });
+
+    // GitHub logout button
+    var logoutButton = document.getElementById('github-logout');
+    logoutButton.addEventListener('click', function() {
+        revokeToken();
+        updateAuthUI(null);
+        showToast('Logged out successfully', 'success');
+    });
+
+    // GitHub user div - click to browse gists
+    var userDiv = document.getElementById('github-user');
+    userDiv.addEventListener('click', function(e) {
+        // Don't trigger if clicking the logout button
+        if (e.target.id === 'github-logout' || e.target.closest('#github-logout')) {
+            return;
+        }
+        showGistBrowserModal();
+    });
+    userDiv.style.cursor = 'pointer';
 
     run_button.addEventListener('click', function () {
         if (!isUsable) {
@@ -808,11 +1494,39 @@ function init() {
         }
         run_button.textContent = "Running"
         disableButtons();
-        var code = editor.getValue();
-        updateQueryParams(code);
-        var analysisWrapper = document.getElementById('eval_wrapper_source').innerText;
-        code = "?>" + code;
-        doRunWithWrapper(analysisWrapper, code, false, 'PHP code ran successfully with no output.');
+
+        // Save current file to files array
+        saveCurrentFile();
+
+        var code;
+        if (files.length === 1) {
+            // Single file - run as before
+            code = files[0].content;
+            updateQueryParams(code);
+            var analysisWrapper = document.getElementById('eval_wrapper_source').innerText;
+            code = "?>" + code;
+            doRunWithWrapper(analysisWrapper, code, false, 'PHP code ran successfully with no output.');
+        } else {
+            // Multiple files - always auto-include all files
+
+            // Build code to write all files to VFS
+            var filesSetup = '';
+            files.forEach(function(file) {
+                var escapedContent = encodeURIComponent(file.content);
+                filesSetup += 'file_put_contents("' + file.name + '", rawurldecode("' + escapedContent + '"));\n';
+            });
+
+            // Auto-include all non-first files, then run first file
+            code = filesSetup;
+            for (var i = 1; i < files.length; i++) {
+                code += 'require_once "' + files[i].name + '";\n';
+            }
+            code += 'require_once "' + files[0].name + '";';
+
+            updateQueryParams(files[0].content);
+            var analysisWrapper = document.getElementById('eval_wrapper_source').innerText;
+            doRunWithWrapper(analysisWrapper, code, false, 'PHP code ran successfully with no output.');
+        }
     });
     analyze_button.addEventListener('click', function () {
         if (!isUsable) {
@@ -831,10 +1545,40 @@ function init() {
         }
         analyze_button.textContent = "Analyzing"
         disableButtons();
-        var code = editor.getValue();
-        updateQueryParams(code);
+
+        // Save current file to files array
+        saveCurrentFile();
+
+        // For multi-file analysis, we need to modify the phan_runner_source
+        // to write all files to VFS and set the file_list config
         var analysisWrapper = document.getElementById('phan_runner_source').innerText;
-        doRunWithWrapper(analysisWrapper, code, true, 'Phan did not detect any errors.');
+
+        // Build PHP code to write all files to VFS
+        var filesCode = '';
+        files.forEach(function(file) {
+            var escapedContent = encodeURIComponent(file.content);
+            filesCode += 'file_put_contents("' + file.name + '", rawurldecode("' + escapedContent + '"));\n';
+        });
+
+        // Build file list array
+        var fileList = files.map(function(f) { return f.name; });
+
+        // Replace the single 'input' file with our multi-file setup
+        var modifiedWrapper = analysisWrapper
+            .replace('file_put_contents(\'input\', $CONTENTS_TO_ANALYZE);', filesCode)
+            .replace('Config::setValue(\'file_list\', [\'input\']);', 'Config::setValue(\'file_list\', ' + JSON.stringify(fileList) + ');');
+
+        // For single file, just pass the code as before
+        if (files.length === 1) {
+            var code = files[0].content;
+            updateQueryParams(code);
+            doRunWithWrapper(analysisWrapper, code, true, 'Phan did not detect any errors.');
+        } else {
+            // For multiple files, we use the modified wrapper and pass empty content
+            // since all files are written via filesCode
+            updateQueryParams(files[0].content);
+            doRunWithWrapper(modifiedWrapper, '', true, 'Phan did not detect any errors.');
+        }
     });
 
     // Set up line number highlighting
@@ -843,6 +1587,15 @@ function init() {
 
 function setupLineHighlighting() {
     var currentEditorHighlight = null;
+
+    // Parse filename from error message
+    function getFilenameFromError(errorElement) {
+        var fileSpan = errorElement.querySelector('.phan_file');
+        if (fileSpan) {
+            return fileSpan.textContent.trim();
+        }
+        return null;
+    }
 
     // Parse line number from error message
     function getLineNumberFromError(errorElement) {
@@ -854,6 +1607,23 @@ function setupLineHighlighting() {
             }
         }
         return null;
+    }
+
+    // Check if error belongs to currently active file
+    function errorMatchesCurrentFile(errorElement) {
+        var errorFilename = getFilenameFromError(errorElement);
+        if (!errorFilename) return false;
+
+        // Get current file name
+        var currentFileName = files[currentFileIndex].name;
+
+        // For single-file mode, Phan reports errors as 'input'
+        if (files.length === 1 && errorFilename === 'input') {
+            return true;
+        }
+
+        // For multi-file mode, match filename directly
+        return errorFilename === currentFileName;
     }
 
     // Highlight editor line
@@ -875,10 +1645,13 @@ function setupLineHighlighting() {
     output_area.addEventListener('mouseover', function(e) {
         var errorP = e.target.closest('p');
         if (errorP && errorP.parentElement === output_area) {
-            var lineNum = getLineNumberFromError(errorP);
-            if (lineNum !== null) {
-                highlightEditorLine(lineNum);
-                errorP.classList.add('highlighted');
+            // Only highlight if error belongs to current file
+            if (errorMatchesCurrentFile(errorP)) {
+                var lineNum = getLineNumberFromError(errorP);
+                if (lineNum !== null) {
+                    highlightEditorLine(lineNum);
+                    errorP.classList.add('highlighted');
+                }
             }
         }
     });
@@ -896,16 +1669,21 @@ function setupLineHighlighting() {
         var cursorPos = editor.getCursorPosition();
         var lineNum = cursorPos.row + 1;
 
-        // Find and highlight matching errors
+        // Find and highlight matching errors for current file
         var errorPs = output_area.querySelectorAll('p');
         errorPs.forEach(function(errorP) {
-            var errorLine = getLineNumberFromError(errorP);
-            if (errorLine === lineNum) {
-                errorP.classList.add('highlighted');
-                // Scroll error into view if not visible
-                if (errorP.offsetTop < output_area.scrollTop ||
-                    errorP.offsetTop > output_area.scrollTop + output_area.clientHeight) {
-                    errorP.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+            // Only process errors that belong to the current file
+            if (errorMatchesCurrentFile(errorP)) {
+                var errorLine = getLineNumberFromError(errorP);
+                if (errorLine === lineNum) {
+                    errorP.classList.add('highlighted');
+                    // Scroll error into view if not visible
+                    if (errorP.offsetTop < output_area.scrollTop ||
+                        errorP.offsetTop > output_area.scrollTop + output_area.clientHeight) {
+                        errorP.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+                    }
+                } else {
+                    errorP.classList.remove('highlighted');
                 }
             } else {
                 errorP.classList.remove('highlighted');
@@ -918,6 +1696,9 @@ function setupLineHighlighting() {
 
     // Initial highlight on page load
     highlightErrorsForCurrentLine();
+
+    // Expose function globally so it can be called when switching files
+    window.highlightErrorsForCurrentLine = highlightErrorsForCurrentLine;
 }
 
 var sizeInBytes = 134217728;
@@ -929,6 +1710,8 @@ var reusableWasmMemory;
  * @returns {Promise<PHP>} the new php module
  */
 function generateNewPHPModule() {
+    LoadingIndicator.update('Initializing PHP runtime...', 60);
+
     fillReusableMemoryWithZeroes();
     reusableWasmMemory = reusableWasmMemory || new WebAssembly.Memory({
         initial: sizeInBytes / WASM_PAGE_SIZE,
@@ -978,8 +1761,10 @@ function generateNewPHPModule() {
     console.log('creating PHP module (phars will be loaded dynamically)');
     return PHP(phpModuleOptions).then(function (newPHPModule) {
         console.log('created PHP module', newPHPModule);
+        LoadingIndicator.update('PHP runtime initialized', 80);
         return newPHPModule;
     }).catch(function (error) {
+        LoadingIndicator.hide();
         showWebAssemblyError('Failed to initialize WebAssembly module: ' + error.message);
         throw error;
     });
@@ -1013,18 +1798,272 @@ function loadPHPScript(callback) {
     var scriptUrl = versionPath + 'php.js';
 
     console.log('Loading PHP script from:', scriptUrl);
+    LoadingIndicator.show('Loading PHP JavaScript...', 10);
 
     var script = document.createElement('script');
     script.type = 'text/javascript';
     script.src = scriptUrl;
     script.onload = function() {
         console.log('Successfully loaded php.js');
+        LoadingIndicator.update('PHP JavaScript loaded', 15);
         callback();
     };
     script.onerror = function() {
+        LoadingIndicator.hide();
         showWebAssemblyError('Failed to load php.js from ' + scriptUrl);
     };
     document.head.appendChild(script);
+}
+
+// Gist browser modal function
+function showGistBrowserModal() {
+    // Create modal
+    var modal = document.createElement('div');
+    modal.className = 'modal show';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Browse Your Gists</h2>
+                <button class="modal-close" id="gist-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="gist-list" id="gist-list">
+                    <div class="gist-loading">Loading your gists...</div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Close modal function
+    function closeModal() {
+        modal.remove();
+    }
+
+    // Close handlers
+    document.getElementById('gist-modal-close').addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
+
+    // Fetch and display gists
+    fetchUserGists().then(function(gists) {
+        var listContainer = document.getElementById('gist-list');
+
+        if (gists.length === 0) {
+            listContainer.innerHTML = `
+                <div class="gist-empty">
+                    <div class="gist-empty-icon">📝</div>
+                    <p>You don't have any gists yet.</p>
+                </div>
+            `;
+            return;
+        }
+
+        listContainer.innerHTML = '';
+        gists.forEach(function(gist) {
+            var gistItem = document.createElement('div');
+            gistItem.className = 'gist-item';
+
+            // Get file names - first file is the main file (gist display name)
+            var allFileNames = Object.keys(gist.files).filter(function(name) {
+                return name !== 'phan-demo.json';
+            });
+            var fileCount = allFileNames.length;
+
+            // For Phan gists, show main file + count of additional files
+            var hasPhanMetadata = gist.files['phan-demo.json'] !== undefined;
+            var fileList;
+            if (hasPhanMetadata && fileCount > 0) {
+                // First file in the gist is our main file
+                var mainFile = allFileNames[0];
+                if (fileCount === 1) {
+                    fileList = mainFile;
+                } else {
+                    // Show "Main.php + 2 more" style
+                    fileList = mainFile + ' + ' + (fileCount - 1) + ' more';
+                }
+            } else {
+                // Show file names for non-Phan gists
+                fileList = allFileNames.slice(0, 3).join(', ');
+                if (allFileNames.length > 3) {
+                    fileList += ', ...';
+                }
+            }
+
+            // Format date
+            var updatedDate = new Date(gist.updated_at);
+            var dateStr = updatedDate.toLocaleDateString() + ' ' + updatedDate.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+
+            // Build description
+            var description = gist.description || 'Untitled gist';
+            var descriptionClass = gist.description ? '' : ' empty';
+
+            // Check if gist has metadata (Phan demo)
+            var hasPhanMetadata = gist.files['phan-demo.json'] !== undefined;
+            var shareLink = hasPhanMetadata ? window.location.origin + window.location.pathname + '?gist=' + gist.id : '';
+
+            gistItem.innerHTML = `
+                <img src="${gist.owner.avatar_url}" class="gist-avatar" alt="Avatar">
+                <div class="gist-info">
+                    <div class="gist-description${descriptionClass}">${description}</div>
+                    <div class="gist-files">${fileList}</div>
+                    <div class="gist-meta">
+                        Updated ${dateStr}
+                        ${hasPhanMetadata ? '<span class="gist-share-link" data-share-url="' + shareLink + '" title="Copy share link">📋</span>' : ''}
+                    </div>
+                </div>
+            `;
+
+            gistItem.addEventListener('click', function(e) {
+                // Don't load gist if clicking the share link
+                if (e.target.classList.contains('gist-share-link')) {
+                    e.stopPropagation();
+                    var shareUrl = e.target.getAttribute('data-share-url');
+                    navigator.clipboard.writeText(shareUrl).then(function() {
+                        showToast('Share link copied to clipboard', 'success');
+                    }).catch(function(err) {
+                        console.error('Failed to copy to clipboard:', err);
+                        showToast('Failed to copy link', 'error');
+                    });
+                    return;
+                }
+                closeModal();
+                loadGistFromBrowser(gist);
+            });
+
+            listContainer.appendChild(gistItem);
+        });
+    }).catch(function(error) {
+        var listContainer = document.getElementById('gist-list');
+        listContainer.innerHTML = `
+            <div class="gist-empty">
+                <div class="gist-empty-icon">⚠️</div>
+                <p>Failed to load gists: ${error.message}</p>
+            </div>
+        `;
+    });
+}
+
+// Load gist from browser (handles both metadata and plain PHP files)
+function loadGistFromBrowser(gistSummary) {
+    // First, fetch the full gist with file contents
+    loadGistById(gistSummary.id, null).then(function(gist) {
+        var metadata = null;
+        var initial_files = [];
+
+        // Check if gist has metadata
+        if (gist.files['phan-demo.json']) {
+            try {
+                metadata = JSON.parse(gist.files['phan-demo.json'].content);
+            } catch (e) {
+                console.error('Failed to parse gist metadata:', e);
+            }
+        }
+
+        // Load files
+        if (metadata && metadata.fileOrder) {
+            // Use saved file order from metadata
+            metadata.fileOrder.forEach(function(filename) {
+                if (gist.files[filename]) {
+                    initial_files.push({
+                        name: filename,
+                        content: gist.files[filename].content
+                    });
+                }
+            });
+        } else {
+            // No metadata - check if it looks like a PHP file
+            var phpFiles = Object.keys(gist.files).filter(function(name) {
+                return name.endsWith('.php');
+            });
+
+            if (phpFiles.length > 0) {
+                // Load PHP files
+                phpFiles.forEach(function(filename) {
+                    initial_files.push({
+                        name: filename,
+                        content: gist.files[filename].content
+                    });
+                });
+            } else {
+                // Load all non-metadata files
+                Object.keys(gist.files).forEach(function(filename) {
+                    if (filename !== 'phan-demo.json') {
+                        initial_files.push({
+                            name: filename,
+                            content: gist.files[filename].content
+                        });
+                    }
+                });
+            }
+        }
+
+        // If no files found, create a default file
+        if (initial_files.length === 0) {
+            initial_files.push({
+                name: 'file1.php',
+                content: '<?php\n\n'
+            });
+        }
+
+        // Restore files
+        files = initial_files;
+        currentFileIndex = 0;
+        updateFileTabs();
+
+        // Load first file into editor
+        if (files.length > 0) {
+            editor.setValue(files[0].content, -1);
+        }
+
+        // Restore settings from metadata if available
+        if (metadata) {
+            if (metadata.phpVersion) {
+                document.getElementById('php-version').value = metadata.phpVersion;
+                currentPhpVersion = metadata.phpVersion;
+            }
+            if (metadata.phanVersion) {
+                document.getElementById('phan-version').value = metadata.phanVersion;
+                currentPhanVersion = metadata.phanVersion;
+            }
+            if (metadata.astVersion) {
+                document.getElementById('ast-version').value = metadata.astVersion;
+                currentAstVersion = metadata.astVersion;
+            }
+            if (metadata.plugins) {
+                var pluginBits = parseInt(metadata.plugins);
+                activePlugins = [];
+                allPlugins.forEach(function(plugin, index) {
+                    if (pluginBits & (1 << index)) {
+                        activePlugins.push(plugin);
+                    }
+                });
+            }
+
+            // Reload WebAssembly module if versions changed
+            reloadPHPModule();
+        }
+
+        // Save to localStorage
+        saveFilesToLocalStorage();
+
+        // Clear unsaved changes flag since we just loaded this gist
+        window.hasUnsavedChanges = false;
+
+        // Update URL
+        if (window.history.pushState) {
+            var newUrl = window.location.pathname + '?gist=' + gist.id;
+            window.history.pushState({gist: gist.id}, '', newUrl);
+        }
+
+        showToast('Loaded gist: ' + (gist.description || 'Untitled'), 'success');
+    }).catch(function(error) {
+        console.error('Failed to load gist:', error);
+        showToast('Failed to load gist: ' + error.message, 'error');
+    });
 }
 
 // Plugin configuration modal functions
@@ -1343,8 +2382,8 @@ function renderAstVisualization(astData) {
     currentAstData = astData;
     astNodeMap.clear();
 
-    // Clear output area and add canvas with zoom controls
-    output_area.innerHTML = '<div id="ast-canvas"></div><div id="ast-zoom-controls"><button id="zoom-in" title="Zoom In">+</button><button id="zoom-out" title="Zoom Out">-</button><button id="zoom-fit" title="Zoom to Fit">⊡</button></div>';
+    // Clear output area and add canvas wrapper with zoom controls
+    output_area.innerHTML = '<div id="ast-canvas-wrapper"><div id="ast-canvas"></div></div><div id="ast-zoom-controls"><button id="zoom-in" title="Zoom In">+</button><button id="zoom-out" title="Zoom Out">-</button><button id="zoom-fit" title="Zoom to Fit">⊡</button></div>';
     output_area.classList.add('ast-view');
 
     var canvas = document.getElementById('ast-canvas');
@@ -1662,9 +2701,12 @@ function highlightAstNodesFromEditor() {
                 var cellView = astPaper.findViewByModel(cell);
                 if (cellView) {
                     var bbox = cellView.getBBox();
-                    // Scroll the output area to show the highlighted node
-                    output_area.scrollTop = Math.max(0, bbox.y - 100);
-                    output_area.scrollLeft = Math.max(0, bbox.x - 50);
+                    // Scroll the canvas wrapper to show the highlighted node
+                    var canvasWrapper = document.getElementById('ast-canvas-wrapper');
+                    if (canvasWrapper) {
+                        canvasWrapper.scrollTop = Math.max(0, bbox.y - 100);
+                        canvasWrapper.scrollLeft = Math.max(0, bbox.x - 50);
+                    }
                 }
             }
         });
@@ -1684,6 +2726,9 @@ function initAstVisualization() {
         ast_button.textContent = "Generating AST";
         disableButtons();
 
+        // Show loading indicator immediately
+        LoadingIndicator.show('Parsing code...', 10);
+
         var code = editor.getValue();
         var astWrapper = document.getElementById('ast_dumper_source').innerText;
         code = "?>" + code;
@@ -1695,9 +2740,14 @@ function initAstVisualization() {
         combinedOutput = '';
         combinedHTMLOutput = '';
 
-        lazyGenerateNewPHPModule(function() {
-            let ret = phpModule.ccall('pib_eval', 'number', ["string"], [astCode]);
-            console.log('AST generation complete', ret);
+        // Use requestAnimationFrame to ensure loading indicator renders before heavy processing
+        requestAnimationFrame(function() {
+            setTimeout(function() {
+                lazyGenerateNewPHPModule(function() {
+                    LoadingIndicator.update('Generating AST...', 50);
+                    let ret = phpModule.ccall('pib_eval', 'number', ["string"], [astCode]);
+                    console.log('AST generation complete', ret);
+                    LoadingIndicator.update('Building visualization...', 80);
 
             if (ret == 0 && combinedHTMLOutput) {
                 try {
@@ -1707,6 +2757,7 @@ function initAstVisualization() {
                     if (!cleanOutput) {
                         console.error('No JSON output after filtering stderr');
                         output_area.innerText = 'Failed to generate AST. No output received.';
+                        LoadingIndicator.hide();
                     } else {
                         var astData = JSON.parse(cleanOutput);
                         console.log('AST data:', astData);
@@ -1717,6 +2768,11 @@ function initAstVisualization() {
                         // Set up cursor tracking
                         editor.selection.on('changeCursor', highlightAstNodesFromEditor);
                         highlightAstNodesFromEditor(); // Initial highlight
+
+                        LoadingIndicator.update('Complete!', 100);
+                        setTimeout(function() {
+                            LoadingIndicator.hide();
+                        }, 500);
                     }
 
                 } catch (e) {
@@ -1724,10 +2780,12 @@ function initAstVisualization() {
                     console.error('Raw output:', combinedHTMLOutput);
                     console.error('Cleaned output:', cleanOutput);
                     output_area.innerText = 'Failed to parse AST data: ' + e.message + '\n\nCheck browser console for details.';
+                    LoadingIndicator.hide();
                 }
             } else {
                 console.error('AST generation failed or no output');
                 output_area.innerText = 'Failed to generate AST. Check console for errors.';
+                LoadingIndicator.hide();
             }
 
             // Cleanup and reset
@@ -1744,6 +2802,8 @@ function initAstVisualization() {
             ast_button.textContent = "AST";
             isUsable = true;
             lazyGenerateNewPHPModule();
+                });
+            }, 0);
         });
     });
 
@@ -1980,7 +3040,12 @@ if (!window.WebAssembly) {
                 generateNewPHPModule().then(function (newPHPModule) {
                     console.log('successfully initialized php module');
                     phpModule = newPHPModule
+                    phpModuleDidLoad = true;
                     isUsable = true;
+                    LoadingIndicator.update('Ready!', 100);
+                    setTimeout(function() {
+                        LoadingIndicator.hide();
+                    }, 500);
                     init();
                     initPluginModal();
                     initAstVisualization();

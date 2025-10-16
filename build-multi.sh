@@ -287,10 +287,11 @@ build_php_ast_combo() {
     echo "Configuring PHP ${php_version}"
 
     # PHP 8.5 needs HAVE_REALLOCARRAY defined since emscripten provides it
+    # Add LTO and PIC flags for better optimization (from php-wasm best practices)
     if [[ "$php_version" == 8.5* ]]; then
-        export CFLAGS='-O3 -DZEND_MM_ERROR=0 -DHAVE_REALLOCARRAY=1'
+        export CFLAGS='-O3 -flto -fPIC -DZEND_MM_ERROR=0 -DHAVE_REALLOCARRAY=1'
     else
-        export CFLAGS='-O3 -DZEND_MM_ERROR=0'
+        export CFLAGS='-O3 -flto -fPIC -DZEND_MM_ERROR=0'
     fi
 
     (
@@ -356,16 +357,22 @@ build_php_ast_combo() {
         emcc $CFLAGS -I . -I Zend -I main -I TSRM/ ../pib_eval.c -c -o pib_eval.o
 
         emcc $CFLAGS \
-          --llvm-lto 2 \
           -s ENVIRONMENT=web \
-          -s EXPORTED_FUNCTIONS='["_pib_eval", "_php_embed_init", "_zend_eval_string", "_php_embed_shutdown"]' \
-          -s EXPORTED_RUNTIME_METHODS='["ccall","FS"]' \
+          -s EXPORTED_FUNCTIONS='["_pib_eval", "_pib_force_exit", "_php_embed_init", "_zend_eval_string", "_php_embed_shutdown"]' \
+          -s EXPORTED_RUNTIME_METHODS='["ccall","FS","UTF8ToString","lengthBytesUTF8","stringToUTF8","getValue","setValue","ENV"]' \
           -s MODULARIZE=1 \
           -s EXPORT_NAME="'PHP'" \
-          -s TOTAL_MEMORY=134217728 \
+          -s INITIAL_MEMORY=134217728 \
+          -s ALLOW_MEMORY_GROWTH=1 \
+          -s MAXIMUM_MEMORY=2147483648 \
+          -s TOTAL_STACK=33554432 \
+          -s STACK_SIZE=5242880 \
           -s ASSERTIONS=0 \
           -s INVOKE_RUN=0 \
           -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
+          -s ASYNCIFY=1 \
+          -s STACK_OVERFLOW_CHECK=0 \
+          -s SAFE_HEAP=0 \
           libs/libphp.a pib_eval.o -o out/php.js
 
         # Copy to output directory (no .data file needed without preloaded files)
@@ -461,6 +468,42 @@ echo "Generating manifest.json with phar mtimes..."
 
 echo "Generated manifest.json"
 echo ""
+
+# Add Brotli compression for better download performance
+echo "Compressing files with Brotli..."
+if command -v brotli >/dev/null 2>&1; then
+    compressed_count=0
+
+    # Compress WASM and JS files in builds directory
+    for dir in ${BUILD_ROOT}/php-*/ast-*/; do
+        if [ -f "${dir}/php.wasm" ] && [ ! -f "${dir}/php.wasm.br" ]; then
+            brotli -9 -f "${dir}/php.wasm" -o "${dir}/php.wasm.br"
+            echo "  Compressed: ${dir}/php.wasm"
+            compressed_count=$((compressed_count + 1))
+        fi
+        if [ -f "${dir}/php.js" ] && [ ! -f "${dir}/php.js.br" ]; then
+            brotli -9 -f "${dir}/php.js" -o "${dir}/php.js.br"
+            echo "  Compressed: ${dir}/php.js"
+            compressed_count=$((compressed_count + 1))
+        fi
+    done
+
+    # Compress Phan .phar files
+    for phar in phan-*.phar; do
+        if [ -f "$phar" ] && [ ! -f "${phar}.br" ]; then
+            brotli -9 -f "$phar" -o "${phar}.br"
+            echo "  Compressed: $phar"
+            compressed_count=$((compressed_count + 1))
+        fi
+    done
+
+    echo "Compressed $compressed_count files with Brotli"
+else
+    echo "Warning: brotli not found - skipping compression"
+    echo "Install with: apt-get install brotli (Debian/Ubuntu) or brew install brotli (macOS)"
+fi
+echo ""
+
 echo "Next steps:"
 echo "1. Update static/demo.js to dynamically load .phar files"
 echo "2. Test with: python3 -m http.server --bind 127.0.0.1 8081"
