@@ -55,7 +55,8 @@ git pull origin gh-pages
 
 # Copy web files from master
 echo "Copying web files..."
-git checkout $CURRENT_BRANCH -- index.html static/demo.js static/demo.css favicon.ico
+git checkout $CURRENT_BRANCH -- index.html favicon.ico
+git checkout $CURRENT_BRANCH -- static/demo.js static/demo.css static/gist-auth.js static/loading.js
 
 # Restore builds/ and phar files from temp
 echo "Restoring builds/ directory..."
@@ -79,7 +80,8 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     # Commit
     echo "Committing changes..."
-    git add index.html static/demo.js static/demo.css favicon.ico builds/
+    git add index.html favicon.ico builds/
+    git add static/demo.js static/demo.css static/gist-auth.js static/loading.js
     # Also add phar files and metadata if they exist
     git add *.phar 2>/dev/null || true
     git add *.phar.info *.phar.commit 2>/dev/null || true
