@@ -1125,6 +1125,22 @@ function init() {
                     if (metadata.phanVersion) currentPhanVersion = metadata.phanVersion;
                     if (metadata.astVersion) currentAstVersion = metadata.astVersion;
 
+                    // Update UI dropdowns to reflect loaded metadata
+                    var phpVersionSelect = document.getElementById('php-version');
+                    var phanVersionSelect = document.getElementById('phan-version');
+                    var astVersionSelect = document.getElementById('ast-version');
+
+                    if (phpVersionSelect && metadata.phpVersion) {
+                        phpVersionSelect.value = metadata.phpVersion;
+                    }
+                    if (phanVersionSelect && metadata.phanVersion) {
+                        phanVersionSelect.value = metadata.phanVersion;
+                        updatePhanVersionInfo();
+                    }
+                    if (astVersionSelect && metadata.astVersion) {
+                        astVersionSelect.value = metadata.astVersion;
+                    }
+
                     // Parse plugins if present
                     if (metadata.plugins) {
                         try {
@@ -2028,6 +2044,7 @@ function loadGistFromBrowser(gistSummary) {
             if (metadata.phanVersion) {
                 document.getElementById('phan-version').value = metadata.phanVersion;
                 currentPhanVersion = metadata.phanVersion;
+                updatePhanVersionInfo();
             }
             if (metadata.astVersion) {
                 document.getElementById('ast-version').value = metadata.astVersion;
