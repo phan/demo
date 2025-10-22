@@ -3051,7 +3051,7 @@ if (!window.WebAssembly) {
                     initAstVisualization();
 
                     // Auto-analyze if code was provided in URL
-                    if ((query.has('c') || query.has('code')) && editor.getValue().trim()) {
+                    if ((query.has('c') || query.has('code') || query.has('gist')) && editor.getValue().trim()) {
                         console.log('Auto-analyzing from URL parameter');
                         setTimeout(function() {
                             if (isUsable) {
