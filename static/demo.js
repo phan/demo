@@ -1160,6 +1160,14 @@ function init() {
 
                 // Continue with normal initialization
                 continueInit();
+
+                // Trigger auto-analyze for gist (module is already loaded at this point)
+                setTimeout(function() {
+                    if (isUsable && editor.getValue().trim()) {
+                        console.log('Auto-analyzing loaded gist');
+                        analyze_button.click();
+                    }
+                }, 200);
             }
         }).catch(function(error) {
             console.error('Failed to load gist:', error);
