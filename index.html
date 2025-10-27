@@ -138,19 +138,24 @@ $code_base = require_once($phar . '/src/codebase.php');
 require_once($phar . '/src/Phan/Bootstrap.php');
 
 // Create a stub .phan/config.php to suppress warning
-// Note: .phan directory may be created by JavaScript stub loader
-// Temporarily disable error reporting to suppress "File exists" warnings
-$old_error_reporting = error_reporting(0);
-mkdir('.phan', 0777, true);
-mkdir('.phan/internal_stubs', 0777, true);
-error_reporting($old_error_reporting);
-
+// Note: .phan directory is created by JavaScript stub loader
+// Don't create it again here to avoid "File exists" error
+// Just create the config file directly - file_put_contents will fail if dir doesn't exist
 if (!file_exists('.phan/config.php')) {
-    file_put_contents('.phan/config.php', '<?php return []');
+    try {
+        file_put_contents('.phan/config.php', '<?php return [];');
+    } catch (\Throwable $e) {
+        // Directory doesn't exist, create it
+        @mkdir('.phan', 0777, true);
+        file_put_contents('.phan/config.php', '<?php return [];');
+    }
 }
 
 file_put_contents('input', $CONTENTS_TO_ANALYZE);
 Config::setValue('file_list', ['input']);
+
+// Disable incremental analysis to avoid trying to create .phan directory
+Config::setValue('incremental_analysis', false);
 
 // Configure internal extension stubs (similar to Phan's default .phan/config.php)
 // SPL stub: Use version-specific stub to handle differences in PHP versions
