@@ -37,13 +37,15 @@ if ! git diff-index --quiet HEAD --; then
     exit 1
 fi
 
-# Save builds/ and phar files (they're untracked on master)
+# Save builds/, phar files, and stub files (they're untracked on master)
 TEMP_DIR=$(mktemp -d)
 echo "Saving builds/ directory to temp..."
 cp -r builds/ "$TEMP_DIR/" 2>/dev/null || true
 cp *.phar "$TEMP_DIR/" 2>/dev/null || true
 cp *.phar.info "$TEMP_DIR/" 2>/dev/null || true
 cp *.phar.commit "$TEMP_DIR/" 2>/dev/null || true
+echo "Saving .phan/internal_stubs/ directory to temp..."
+cp -r .phan/ "$TEMP_DIR/" 2>/dev/null || true
 
 # Checkout gh-pages
 echo "Checking out gh-pages branch..."
@@ -58,15 +60,20 @@ echo "Copying web files..."
 git checkout $CURRENT_BRANCH -- index.html favicon.ico
 git checkout $CURRENT_BRANCH -- static/demo.js static/demo.css static/gist-auth.js static/loading.js
 
-# Restore builds/ and phar files from temp
+# Restore builds/, phar files, and stub files from temp
 echo "Restoring builds/ directory..."
 if [ -d "$TEMP_DIR/builds" ]; then
     rm -rf builds/
     cp -r "$TEMP_DIR/builds" .
 fi
+echo "Restoring .phan/internal_stubs/ directory..."
+if [ -d "$TEMP_DIR/.phan" ]; then
+    rm -rf .phan/
+    cp -r "$TEMP_DIR/.phan" .
+fi
 cp "$TEMP_DIR"/*.phar . 2>/dev/null || true
 cp "$TEMP_DIR"/*.phar.info . 2>/dev/null || true
-cp "$TEMP_DIR"/*.phar.commit . 2>/dev/null || true
+cp "$TEMP_DIR"/*.phan.commit . 2>/dev/null || true
 rm -rf "$TEMP_DIR"
 
 # Show status
@@ -85,6 +92,8 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     # Also add phar files and metadata if they exist
     git add *.phar 2>/dev/null || true
     git add *.phar.info *.phar.commit 2>/dev/null || true
+    # Add stub files
+    git add .phan/internal_stubs/ 2>/dev/null || true
 
     # Create commit message with version info
     COMMIT_MSG="Deploy multi-version support
