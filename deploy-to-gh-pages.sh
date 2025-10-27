@@ -60,6 +60,12 @@ echo "Copying web files..."
 git checkout $CURRENT_BRANCH -- index.html favicon.ico
 git checkout $CURRENT_BRANCH -- static/demo.js static/demo.css static/gist-auth.js static/loading.js
 
+# Ensure .nojekyll exists (required to serve .phan/ directory on GitHub Pages)
+if [ ! -f .nojekyll ]; then
+    touch .nojekyll
+    echo "Created .nojekyll file"
+fi
+
 # Restore builds/, phar files, and stub files from temp
 echo "Restoring builds/ directory..."
 if [ -d "$TEMP_DIR/builds" ]; then
