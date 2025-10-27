@@ -401,6 +401,18 @@ done
 echo "Building Phan v6-dev from git..."
 PHAN_V6_DEV_PHAR=$(build_phan_from_git "$PHAN_V6_DEV_BRANCH" "v6-dev")
 
+# Copy stub files from phan-git-v6-dev to the root directory
+echo "Copying Phan internal stub files..."
+mkdir -p .phan/internal_stubs
+if [ -d "phan-git-v6-dev/.phan/internal_stubs" ]; then
+    cp phan-git-v6-dev/.phan/internal_stubs/spl.phan_php .phan/internal_stubs/
+    cp phan-git-v6-dev/.phan/internal_stubs/spl_php81.phan_php .phan/internal_stubs/
+    cp phan-git-v6-dev/.phan/internal_stubs/standard_templates.phan_php .phan/internal_stubs/
+    echo "Copied stub files to .phan/internal_stubs/"
+else
+    echo "Warning: phan-git-v6-dev/.phan/internal_stubs not found - stub files may be missing"
+fi
+
 echo "Note: Building stable releases ${PHAN_RELEASED_VERSIONS[*]} and v6-dev for all PHP versions."
 
 # Build all combinations

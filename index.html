@@ -139,10 +139,28 @@ require_once($phar . '/src/Phan/Bootstrap.php');
 
 // Create a stub .phan/config.php to suppress warning
 @mkdir('.phan');
+@mkdir('.phan/internal_stubs');
 file_put_contents('.phan/config.php', '<?php return [];');
 
 file_put_contents('input', $CONTENTS_TO_ANALYZE);
 Config::setValue('file_list', ['input']);
+
+// Configure internal extension stubs (similar to Phan's default .phan/config.php)
+// SPL stub: Use version-specific stub to handle differences in PHP versions
+// PHP 8.1-8.3: No typed constants (syntax error), no seek() method on SplObjectStorage
+// PHP 8.4+: Typed constants OK, seek() method added to SplObjectStorage
+Config::setValue('autoload_internal_extension_signatures', [
+    'spl' => PHP_VERSION_ID >= 80400
+        ? '.phan/internal_stubs/spl.phan_php'         // PHP 8.4+: typed constants + seek()
+        : '.phan/internal_stubs/spl_php81.phan_php',  // PHP 8.1-8.3: no typed constants, no seek()
+    'standard' => '.phan/internal_stubs/standard_templates.phan_php',  // template annotations for array functions
+]);
+
+// Mark SPL as needing template class replacement
+Config::setValue('autoload_internal_extension_signatures_template_classes', ['spl']);
+// Mark standard as needing template function signatures
+Config::setValue('autoload_internal_extension_signatures_template_functions', ['standard']);
+
 // Plugins will be set dynamically from JavaScript
 $ACTIVE_PLUGINS_PLACEHOLDER
 // This is stricter, though.

@@ -647,14 +647,16 @@ function doRunWithPhar(code, outputIsHTML, defaultText, pharName) {
         lazyGenerateNewPHPModule(invokePHPInner);
     };
     let invokePHPInner = function () {
-        // Load the phar file now that the PHP module is ready
-        if (pharName) {
-            loadPharFile(pharName, function() {
+        // Load stub files and phar file now that the PHP module is ready
+        loadStubFiles(function() {
+            if (pharName) {
+                loadPharFile(pharName, function() {
+                    executeCode();
+                });
+            } else {
                 executeCode();
-            });
-        } else {
-            executeCode();
-        }
+            }
+        });
     };
     let executeCode = function() {
         let ret = phpModule.ccall('pib_eval', 'number', ["string"], [code])
@@ -679,8 +681,9 @@ function doRunWithPhar(code, outputIsHTML, defaultText, pharName) {
                 phpModule = null;
                 phpModuleDidLoad = false;
 
-                // Clear loaded phar tracking since the new module will have a fresh virtual filesystem
+                // Clear loaded phar and stub tracking since the new module will have a fresh virtual filesystem
                 loadedPharFiles = {};
+                loadedStubFiles = {};
 
                 enableButtons();
                 isUsable = true;
@@ -889,6 +892,98 @@ function fetchPharManifest(callback) {
         });
 }
 
+// Track loaded stub files to avoid reloading
+var loadedStubFiles = {};
+
+// Function to load Phan internal stub files into the virtual filesystem
+function loadStubFiles(callback) {
+    // List of stub files to load
+    var stubFiles = [
+        '.phan/internal_stubs/spl.phan_php',
+        '.phan/internal_stubs/spl_php81.phan_php',
+        '.phan/internal_stubs/standard_templates.phan_php'
+    ];
+
+    // Check if already loaded
+    var allLoaded = stubFiles.every(function(file) {
+        return loadedStubFiles[file];
+    });
+
+    if (allLoaded) {
+        console.log('Stub files already loaded');
+        callback();
+        return;
+    }
+
+    console.log('Loading Phan internal stub files...');
+
+    // Create .phan/internal_stubs directory in virtual filesystem
+    if (phpModule && phpModule.FS) {
+        try {
+            phpModule.FS.mkdir('/.phan');
+        } catch (e) {
+            // Directory may already exist
+        }
+        try {
+            phpModule.FS.mkdir('/.phan/internal_stubs');
+        } catch (e) {
+            // Directory may already exist
+        }
+    }
+
+    // Load each stub file
+    var loadedCount = 0;
+    var totalFiles = stubFiles.length;
+
+    stubFiles.forEach(function(stubPath) {
+        // Skip if already loaded
+        if (loadedStubFiles[stubPath]) {
+            loadedCount++;
+            if (loadedCount === totalFiles) {
+                callback();
+            }
+            return;
+        }
+
+        fetch(stubPath)
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch ' + stubPath + ': ' + response.status);
+                }
+                return response.arrayBuffer();
+            })
+            .then(function(buffer) {
+                var uint8Array = new Uint8Array(buffer);
+
+                // Extract just the filename from the path
+                var filename = stubPath.split('/').pop();
+
+                if (phpModule && phpModule.FS && phpModule.FS.writeFile) {
+                    // Write file to virtual filesystem
+                    phpModule.FS.writeFile('/' + stubPath, uint8Array);
+                    loadedStubFiles[stubPath] = true;
+                    console.log('Loaded stub file:', stubPath);
+
+                    loadedCount++;
+                    if (loadedCount === totalFiles) {
+                        console.log('All stub files loaded successfully');
+                        callback();
+                    }
+                } else {
+                    throw new Error('PHP module FS not available');
+                }
+            })
+            .catch(function(error) {
+                console.error('Error loading stub file:', stubPath, error);
+                // Continue even if stub loading fails
+                loadedCount++;
+                if (loadedCount === totalFiles) {
+                    callback();
+                }
+            });
+    });
+}
+
 // Function to load a .phar file dynamically into the PHP virtual filesystem
 function loadPharFile(pharName, callback) {
     // Check if already loaded
@@ -1026,9 +1121,10 @@ function reloadPHPModule() {
     phpModuleDidLoad = false;
     fillReusableMemoryWithZeroes();
 
-    // Clear loaded phar tracking since the new module will have a fresh virtual filesystem
+    // Clear loaded phar and stub tracking since the new module will have a fresh virtual filesystem
     loadedPharFiles = {};
-    console.log('Cleared phar file cache for new module');
+    loadedStubFiles = {};
+    console.log('Cleared phar and stub file cache for new module');
 
     // Clear window.PHP to force reload of new version
     window.PHP = undefined;
@@ -2821,8 +2917,9 @@ function initAstVisualization() {
             }
             phpModule = null;
             phpModuleDidLoad = false;
-            // Clear cached phar records since the module will be re-created
+            // Clear cached phar and stub records since the module will be re-created
             loadedPharFiles = {};
+            loadedStubFiles = {};
             enableButtons();
             ast_button.textContent = "AST";
             isUsable = true;
@@ -3026,8 +3123,9 @@ function initAstVisualization() {
             phpModule = null;
             phpModuleDidLoad = false;
 
-            // Clear loaded phar tracking since the new module will have a fresh virtual filesystem
+            // Clear loaded phar and stub tracking since the new module will have a fresh virtual filesystem
             loadedPharFiles = {};
+            loadedStubFiles = {};
 
             enableButtons();
             opcodes_button.textContent = "Opcodes";
