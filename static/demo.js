@@ -899,9 +899,9 @@ var loadedStubFiles = {};
 function loadStubFiles(callback) {
     // List of stub files to load
     var stubFiles = [
-        '.phan/internal_stubs/spl.phan_php',
-        '.phan/internal_stubs/spl_php81.phan_php',
-        '.phan/internal_stubs/standard_templates.phan_php'
+        '.phan/stubs/spl.phan_php',
+        '.phan/stubs/spl_php81.phan_php',
+        '.phan/stubs/standard_templates.phan_php'
     ];
 
     // Check if already loaded
@@ -917,15 +917,27 @@ function loadStubFiles(callback) {
 
     console.log('Loading Phan internal stub files...');
 
-    // Create .phan/internal_stubs directory in virtual filesystem
+    // Create necessary directories in virtual filesystem
     if (phpModule && phpModule.FS) {
+        // Create /.phan for config.php (used by Phan runner)
         try {
             phpModule.FS.mkdir('/.phan');
         } catch (e) {
             // Directory may already exist
         }
+        // Create /phan/internal/stubs for stub files (Phan's new structure)
         try {
-            phpModule.FS.mkdir('/.phan/internal_stubs');
+            phpModule.FS.mkdir('/phan');
+        } catch (e) {
+            // Directory may already exist
+        }
+        try {
+            phpModule.FS.mkdir('/phan/internal');
+        } catch (e) {
+            // Directory may already exist
+        }
+        try {
+            phpModule.FS.mkdir('/phan/internal/stubs');
         } catch (e) {
             // Directory may already exist
         }
@@ -959,10 +971,11 @@ function loadStubFiles(callback) {
                 var filename = stubPath.split('/').pop();
 
                 if (phpModule && phpModule.FS && phpModule.FS.writeFile) {
-                    // Write file to virtual filesystem
-                    phpModule.FS.writeFile('/' + stubPath, uint8Array);
+                    // Write file to virtual filesystem at /phan/internal/stubs/
+                    var virtualPath = '/phan/internal/stubs/' + filename;
+                    phpModule.FS.writeFile(virtualPath, uint8Array);
                     loadedStubFiles[stubPath] = true;
-                    console.log('Loaded stub file:', stubPath);
+                    console.log('Loaded stub file:', stubPath, '->', virtualPath);
 
                     loadedCount++;
                     if (loadedCount === totalFiles) {
