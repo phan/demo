@@ -49,6 +49,10 @@ cp -r .phan/ "$TEMP_DIR/" 2>/dev/null || true
 cp manifest.json "$TEMP_DIR/" 2>/dev/null || true
 cp *.phar.br "$TEMP_DIR/" 2>/dev/null || true
 
+# Remove untracked files that would conflict with gh-pages checkout
+echo "Removing untracked files that exist on gh-pages..."
+rm -f manifest.json *.phar.br 2>/dev/null || true
+
 # Checkout gh-pages
 echo "Checking out gh-pages branch..."
 git checkout gh-pages
