@@ -12,6 +12,8 @@ builds/
 *.phar
 *.phar.commit
 *.phar.info
+*.phar.br
+manifest.json
 /phan-git-*/
 /vld-git/
 /ast-*.tgz
