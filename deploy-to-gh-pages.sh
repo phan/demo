@@ -51,6 +51,7 @@ cp *.phar.br "$TEMP_DIR/" 2>/dev/null || true
 
 # Remove untracked files that would conflict with gh-pages checkout
 echo "Removing untracked files that exist on gh-pages..."
+rm -rf builds 2>/dev/null || true
 rm -f manifest.json *.phar.br 2>/dev/null || true
 
 # Checkout gh-pages
@@ -114,10 +115,9 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     # Create commit message with version info
     COMMIT_MSG="Deploy multi-version support
 
-- PHP versions: 8.1.33, 8.2.29, 8.3.26, 8.4.13, 8.5.0RC2
-- Phan versions: 5.5.1, 5.5.2, v6-dev
+- PHP versions: 8.1.33, 8.2.30, 8.3.29, 8.4.16, 8.5.1
+- Phan versions: 5.5.2, v6-dev
 - php-ast versions: 1.1.2, 1.1.3
-- New modern UI
 - User-selectable PHP, Phan, and ast versions"
 
     git commit -m "$COMMIT_MSG"
