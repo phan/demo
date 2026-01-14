@@ -366,19 +366,68 @@ demo(2, new SplObjectStorage());</textarea>
     <div id="plugin-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Configure Phan Plugins</h2>
+                <h2>Configure Phan Analysis</h2>
                 <button class="modal-close" id="modal-close">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="level-buttons">
-                    <button class="level-btn" data-level="1">Level 1</button>
-                    <button class="level-btn" data-level="2">Level 2</button>
-                    <button class="level-btn" data-level="3">Level 3</button>
-                    <button class="level-btn" data-level="4">Level 4</button>
-                    <button class="level-btn" data-level="5">Level 5</button>
+                <div class="plugins-section">
+                    <h3>Plugins</h3>
+                    <div class="level-buttons">
+                        <button class="level-btn" data-level="1">Level 1</button>
+                        <button class="level-btn" data-level="2">Level 2</button>
+                        <button class="level-btn" data-level="3">Level 3</button>
+                        <button class="level-btn" data-level="4">Level 4</button>
+                        <button class="level-btn" data-level="5">Level 5</button>
+                    </div>
+                    <div class="plugin-list" id="plugin-list">
+                        <!-- Plugins will be populated by JavaScript -->
+                    </div>
                 </div>
-                <div class="plugin-list" id="plugin-list">
-                    <!-- Plugins will be populated by JavaScript -->
+
+                <div class="strict-checking-section">
+                    <h3>Strict Type Checking</h3>
+                    <p class="section-description">When enabled, Phan will warn if <strong>any</strong> type in a union cannot be cast to the expected type. This reveals more bugs but may introduce false positives.</p>
+                    <div class="strict-checking-list" id="strict-checking-list">
+                        <div class="strict-item">
+                            <input type="checkbox" id="strict-method" value="strict_method_checking">
+                            <label for="strict-method">
+                                <span class="strict-name">strict_method_checking</span>
+                                <span class="strict-desc">Warn if any type in a method invocation's object is not an object, or if any type is not callable</span>
+                            </label>
+                        </div>
+                        <div class="strict-item">
+                            <input type="checkbox" id="strict-param" value="strict_param_checking">
+                            <label for="strict-param">
+                                <span class="strict-name">strict_param_checking</span>
+                                <span class="strict-desc">Warn if any type in an argument cannot be cast to the parameter's expected type</span>
+                            </label>
+                        </div>
+                        <div class="strict-item">
+                            <input type="checkbox" id="strict-property" value="strict_property_checking">
+                            <label for="strict-property">
+                                <span class="strict-name">strict_property_checking</span>
+                                <span class="strict-desc">Warn if any type in a property assignment cannot be cast to the property's declared type</span>
+                            </label>
+                        </div>
+                        <div class="strict-item">
+                            <input type="checkbox" id="strict-return" value="strict_return_checking">
+                            <label for="strict-return">
+                                <span class="strict-name">strict_return_checking</span>
+                                <span class="strict-desc">Warn if any type in a returned value cannot be cast to the declared return type</span>
+                            </label>
+                        </div>
+                        <div class="strict-item">
+                            <input type="checkbox" id="strict-object" value="strict_object_checking">
+                            <label for="strict-object">
+                                <span class="strict-name">strict_object_checking</span>
+                                <span class="strict-desc">Warn if any type of the object expression for a property access does not contain that property</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="strict-buttons">
+                        <button class="strict-btn" id="strict-all">Enable All</button>
+                        <button class="strict-btn" id="strict-none">Disable All</button>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">

@@ -564,6 +564,17 @@ var pluginLevels = {
 
 var activePlugins = pluginLevels[2]; // Default to level 2
 
+// Strict type checking options
+var allStrictChecks = [
+    'strict_method_checking',
+    'strict_param_checking',
+    'strict_property_checking',
+    'strict_return_checking',
+    'strict_object_checking'
+];
+
+var activeStrictChecks = []; // Default: none enabled
+
 // Parse URL parameters for versions and plugins
 function parseUrlParams() {
     if (query.has('php')) {
@@ -596,6 +607,20 @@ function parseUrlParams() {
             }
         } catch (e) {
             console.error('Failed to parse plugins:', e);
+        }
+    }
+    // Parse strict checking bitfield
+    if (query.has('strict')) {
+        try {
+            var strictBits = parseInt(query.get('strict'));
+            activeStrictChecks = [];
+            allStrictChecks.forEach(function(check, index) {
+                if (strictBits & (1 << index)) {
+                    activeStrictChecks.push(check);
+                }
+            });
+        } catch (e) {
+            console.error('Failed to parse strict checks:', e);
         }
     }
 }
@@ -721,6 +746,10 @@ function doRunWithWrapper(analysisWrapper, code, outputIsHTML, defaultText) {
 
     // Replace active plugins placeholder
     var pluginsCode = 'Config::setValue(\'plugins\', ' + JSON.stringify(activePlugins) + ');';
+    // Add strict checking configuration
+    activeStrictChecks.forEach(function(check) {
+        pluginsCode += '\nConfig::setValue(\'' + check + '\', true);';
+    });
     analysisCode = analysisCode.replace('$ACTIVE_PLUGINS_PLACEHOLDER', pluginsCode);
 
     // Pass the phar name to doRun so it can be loaded after PHP module is ready
@@ -821,6 +850,17 @@ function updateQueryParams(code) {
         }
     });
     url.set('plugins', pluginBits.toString());
+
+    // Encode strict checking as bitfield
+    var strictBits = 0;
+    allStrictChecks.forEach(function(check, index) {
+        if (activeStrictChecks.indexOf(check) !== -1) {
+            strictBits |= (1 << index);
+        }
+    });
+    if (strictBits > 0) {
+        url.set('strict', strictBits.toString());
+    }
 
     history.replaceState({}, document.title, "?" + url.toString());
 }
@@ -1265,6 +1305,22 @@ function init() {
                             console.error('Failed to parse plugins from gist:', e);
                         }
                     }
+
+                    // Parse strict checking if present
+                    if (metadata.strict) {
+                        try {
+                            var strictBits = parseInt(metadata.strict);
+                            activeStrictChecks = [];
+                            allStrictChecks.forEach(function(check, index) {
+                                if (strictBits & (1 << index)) {
+                                    activeStrictChecks.push(check);
+                                }
+                            });
+                            console.log('Loaded strict checks from gist metadata:', activeStrictChecks);
+                        } catch (e) {
+                            console.error('Failed to parse strict checks from gist:', e);
+                        }
+                    }
                 }
 
                 // Continue with normal initialization
@@ -1426,6 +1482,13 @@ function continueInit() {
                     }
                 });
 
+                var strictBits = 0;
+                allStrictChecks.forEach(function(check, index) {
+                    if (activeStrictChecks.indexOf(check) !== -1) {
+                        strictBits |= (1 << index);
+                    }
+                });
+
                 // Save file order to preserve it when loading
                 var fileOrder = files.map(function(file) {
                     return file.name;
@@ -1437,6 +1500,7 @@ function continueInit() {
                         phanVersion: currentPhanVersion,
                         astVersion: currentAstVersion,
                         plugins: pluginBits.toString(),
+                        strict: strictBits.toString(),
                         fileOrder: fileOrder
                     }, null, 2)
                 };
@@ -1561,6 +1625,17 @@ function continueInit() {
                 }
             });
             url.searchParams.set('plugins', pluginBits.toString());
+
+            // Encode strict checking as bitfield
+            var strictBits = 0;
+            allStrictChecks.forEach(function(check, index) {
+                if (activeStrictChecks.indexOf(check) !== -1) {
+                    strictBits |= (1 << index);
+                }
+            });
+            if (strictBits > 0) {
+                url.searchParams.set('strict', strictBits.toString());
+            }
 
             // Copy to clipboard
             var urlString = url.toString();
@@ -2176,6 +2251,15 @@ function loadGistFromBrowser(gistSummary) {
                     }
                 });
             }
+            if (metadata.strict) {
+                var strictBits = parseInt(metadata.strict);
+                activeStrictChecks = [];
+                allStrictChecks.forEach(function(check, index) {
+                    if (strictBits & (1 << index)) {
+                        activeStrictChecks.push(check);
+                    }
+                });
+            }
 
             // Reload WebAssembly module if versions changed
             reloadPHPModule();
@@ -2234,14 +2318,44 @@ function initPluginModal() {
     configureBtn.addEventListener('click', function() {
         modal.classList.add('show');
 
-        // Update checkboxes to reflect current state
+        // Update plugin checkboxes to reflect current state
         allPlugins.forEach(function(plugin) {
             var checkbox = document.getElementById('plugin-' + plugin);
             checkbox.checked = activePlugins.indexOf(plugin) !== -1;
         });
 
+        // Update strict checking checkboxes to reflect current state
+        updateStrictCheckboxes();
+
         // Update level button active state
         updateLevelButtonState();
+    });
+
+    // Helper to update strict checking checkboxes
+    function updateStrictCheckboxes() {
+        document.getElementById('strict-method').checked = activeStrictChecks.indexOf('strict_method_checking') !== -1;
+        document.getElementById('strict-param').checked = activeStrictChecks.indexOf('strict_param_checking') !== -1;
+        document.getElementById('strict-property').checked = activeStrictChecks.indexOf('strict_property_checking') !== -1;
+        document.getElementById('strict-return').checked = activeStrictChecks.indexOf('strict_return_checking') !== -1;
+        document.getElementById('strict-object').checked = activeStrictChecks.indexOf('strict_object_checking') !== -1;
+    }
+
+    // Strict checking "Enable All" button
+    document.getElementById('strict-all').addEventListener('click', function() {
+        document.getElementById('strict-method').checked = true;
+        document.getElementById('strict-param').checked = true;
+        document.getElementById('strict-property').checked = true;
+        document.getElementById('strict-return').checked = true;
+        document.getElementById('strict-object').checked = true;
+    });
+
+    // Strict checking "Disable All" button
+    document.getElementById('strict-none').addEventListener('click', function() {
+        document.getElementById('strict-method').checked = false;
+        document.getElementById('strict-param').checked = false;
+        document.getElementById('strict-property').checked = false;
+        document.getElementById('strict-return').checked = false;
+        document.getElementById('strict-object').checked = false;
     });
 
     // Close modal
@@ -2325,6 +2439,28 @@ function initPluginModal() {
 
         activePlugins = newActivePlugins;
         console.log('Active plugins set to:', activePlugins);
+
+        // Collect strict checking options
+        var newActiveStrictChecks = [];
+        if (document.getElementById('strict-method').checked) {
+            newActiveStrictChecks.push('strict_method_checking');
+        }
+        if (document.getElementById('strict-param').checked) {
+            newActiveStrictChecks.push('strict_param_checking');
+        }
+        if (document.getElementById('strict-property').checked) {
+            newActiveStrictChecks.push('strict_property_checking');
+        }
+        if (document.getElementById('strict-return').checked) {
+            newActiveStrictChecks.push('strict_return_checking');
+        }
+        if (document.getElementById('strict-object').checked) {
+            newActiveStrictChecks.push('strict_object_checking');
+        }
+
+        activeStrictChecks = newActiveStrictChecks;
+        console.log('Active strict checks set to:', activeStrictChecks);
+
         closeModal();
 
         // Make sure ast constraints are enforced (this will update currentAstVersion if needed)
