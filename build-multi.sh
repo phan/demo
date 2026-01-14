@@ -6,13 +6,13 @@
 set -xeu
 
 # Configuration
-PHP_VERSIONS=("8.1.33" "8.2.29" "8.3.26" "8.4.13" "8.5.0RC2")
+PHP_VERSIONS=("8.1.33" "8.2.30" "8.3.29" "8.4.16" "8.5.1")
 # AST versions to build
 AST_VERSIONS=("1.1.2" "1.1.3")
 
 # Phan versions - we'll build different combinations
 # Released v5 versions
-PHAN_RELEASED_VERSIONS=("5.5.1" "5.5.2")
+PHAN_RELEASED_VERSIONS=("5.5.2")
 # For v6 dev, we'll build from git branches
 PHAN_V6_DEV_BRANCH="v6"  # v6 development is in v6 branch
 
