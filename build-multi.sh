@@ -11,8 +11,8 @@ PHP_VERSIONS=("8.1.33" "8.2.30" "8.3.30" "8.4.17" "8.5.2")
 AST_VERSIONS=("1.1.2" "1.1.3")
 
 # Phan versions - we'll build different combinations
-# Released v5 versions
-PHAN_RELEASED_VERSIONS=("5.5.2" "6.0.1")
+# Released versions
+PHAN_RELEASED_VERSIONS=("5.5.1" "5.5.2" "6.0.1")
 # For v6 dev, we'll build from git branches
 PHAN_V6_DEV_BRANCH="v6"  # v6 development is in v6 branch
 

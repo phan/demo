@@ -66,7 +66,7 @@ var phpModuleDidLoad = false;
 var combinedOutput = '';
 var combinedHTMLOutput = '';
 var currentPhpVersion = '84';  // default
-var currentPhanVersion = '5.5.2';  // default
+var currentPhanVersion = '6.0.1';  // default
 var currentAstVersion = '1.1.3';  // default (matches HTML)
 var shouldAutoAnalyze = false;
 
@@ -776,8 +776,8 @@ function enforceAstConstraints() {
         dropdownValue: astVersionSelect.value
     });
 
-    // PHP 8.4, 8.5, and Phan v6-dev all require ast 1.1.3
-    var requiresAst113 = (currentPhpVersion === '84' || currentPhpVersion === '85' || currentPhanVersion === 'v6-dev');
+    // PHP 8.4, 8.5, and Phan v6+ all require ast 1.1.3
+    var requiresAst113 = (currentPhpVersion === '84' || currentPhpVersion === '85' || currentPhanVersion === '6.0.1' || currentPhanVersion === 'v6-dev');
 
     if (requiresAst113) {
         console.log('Requires ast 1.1.3, current is:', currentAstVersion);
