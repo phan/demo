@@ -6,13 +6,13 @@
 set -xeu
 
 # Configuration
-PHP_VERSIONS=("8.1.33" "8.2.30" "8.3.29" "8.4.16" "8.5.1")
+PHP_VERSIONS=("8.1.33" "8.2.30" "8.3.30" "8.4.17" "8.5.2")
 # AST versions to build
 AST_VERSIONS=("1.1.2" "1.1.3")
 
 # Phan versions - we'll build different combinations
 # Released v5 versions
-PHAN_RELEASED_VERSIONS=("5.5.2")
+PHAN_RELEASED_VERSIONS=("5.5.2" "6.0.1")
 # For v6 dev, we'll build from git branches
 PHAN_V6_DEV_BRANCH="v6"  # v6 development is in v6 branch
 
@@ -121,32 +121,42 @@ build_phan_from_git() {
                 # We'll manually apply patches, then finish the build
                 php composer.phar install --classmap-authoritative --prefer-dist --no-dev >&2
 
-                # Manually apply the PHP 8.5 compatibility patch to var_representation_polyfill
-                echo "Manually applying PHP 8.5 compatibility patch..." >&2
-                PATCH_FILE="patches/var_representation_polyfill_php85_compat.patch"
-                TARGET_FILE="vendor/tysonandre/var_representation_polyfill/src/VarRepresentation/Encoder.php"
-
-                if [ -f "$PATCH_FILE" ] && [ -f "$TARGET_FILE" ]; then
-                    # Apply the patch using sed (simpler than patch command for single line change)
-                    sed -i "s/case 'NULL';/case 'NULL':/" "$TARGET_FILE" >&2
-                    echo "Applied PHP 8.5 compatibility patch to var_representation_polyfill" >&2
-
-                    # Verify it was applied
-                    if grep -q "case 'NULL':" "$TARGET_FILE"; then
-                        echo "Patch verified successfully" >&2
-                    else
-                        echo "WARNING: Patch may not have been applied correctly" >&2
+                # Apply PHP 8.5 compatibility patch to var_representation_polyfill if needed
+                # The bug is case 'NULL'; (semicolon) which should be case 'NULL': (colon)
+                # Newer versions (phan/var_representation_polyfill) have this fixed already
+                TARGET_FILE=""
+                for candidate in \
+                    "vendor/tysonandre/var_representation_polyfill/src/VarRepresentation/Encoder.php" \
+                    "vendor/phan/var_representation_polyfill/src/VarRepresentation/Encoder.php"; do
+                    if [ -f "$candidate" ]; then
+                        TARGET_FILE="$candidate"
+                        break
                     fi
+                done
+
+                if [ -n "$TARGET_FILE" ] && grep -q "case 'NULL';" "$TARGET_FILE"; then
+                    echo "Applying PHP 8.5 compatibility patch to $TARGET_FILE" >&2
+                    sed -i "s/case 'NULL';/case 'NULL':/" "$TARGET_FILE" >&2
+                    echo "Patched case 'NULL'; -> case 'NULL':" >&2
                 else
-                    echo "WARNING: Patch file or target not found, skipping..." >&2
+                    echo "var_representation_polyfill patch not needed (already fixed or not found)" >&2
                 fi
 
                 # Apply the tolerant-parser nullable params patch
                 PATCH_FILE2="patches/tolerant-parser-nullable-params.patch"
                 if [ -f "$PATCH_FILE2" ]; then
-                    (cd vendor/microsoft/tolerant-php-parser && patch -p1 < "../../../$PATCH_FILE2") >&2 2>/dev/null || {
-                        echo "WARNING: tolerant-parser patch failed or already applied" >&2
-                    }
+                    TOLERANT_DIR=""
+                    for candidate in "vendor/microsoft/tolerant-php-parser" "vendor/phan/tolerant-php-parser"; do
+                        if [ -d "$candidate" ]; then
+                            TOLERANT_DIR="$candidate"
+                            break
+                        fi
+                    done
+                    if [ -n "$TOLERANT_DIR" ]; then
+                        (cd "$TOLERANT_DIR" && patch -p1 < "../../../$PATCH_FILE2") >&2 2>/dev/null || {
+                            echo "WARNING: tolerant-parser patch failed or already applied" >&2
+                        }
+                    fi
                 fi
 
                 # Now finish the build
@@ -451,9 +461,9 @@ echo "  - ast versions: ${AST_VERSIONS[*]}"
 echo "  - Total builds: $(find ${BUILD_ROOT} -name 'php.wasm' 2>/dev/null | wc -l)"
 echo ""
 echo "Phan .phar files available for dynamic loading:"
-echo "  - phan-5.5.1.phar"
-echo "  - phan-5.5.2.phar"
-echo "  - phan-v6-dev.phar"
+for phar in phan-*.phar; do
+    [ -f "$phar" ] && echo "  - $phar"
+done
 echo ""
 
 # Generate manifest.json with phar file mtimes for cache-busting
