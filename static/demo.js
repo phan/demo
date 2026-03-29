@@ -584,7 +584,10 @@ function parseUrlParams() {
         }
     }
     if (query.has('phan')) {
-        currentPhanVersion = query.get('phan');
+        var phanVer = query.get('phan');
+        if (['5.5.2', '6.0.5', 'v6-dev'].indexOf(phanVer) !== -1) {
+            currentPhanVersion = phanVer;
+        }
     }
     if (query.has('ast')) {
         var astVer = query.get('ast');
@@ -1402,9 +1405,9 @@ function continueInit() {
     var phanVersionSelect = document.getElementById('phan-version');
     var astVersionSelect = document.getElementById('ast-version');
 
-    // Read initial values from dropdowns
+    // Read initial values from dropdowns (keep existing currentPhanVersion if select has no matching option)
     currentPhpVersion = phpVersionSelect.value;
-    currentPhanVersion = phanVersionSelect.value;
+    currentPhanVersion = phanVersionSelect.value || currentPhanVersion;
     currentAstVersion = astVersionSelect.value;
 
     phpVersionSelect.addEventListener('change', function() {
