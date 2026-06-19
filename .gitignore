@@ -18,6 +18,7 @@ manifest.json
 /vld-git/
 /ast-*.tgz
 package.xml
+steps.txt
 
 .*.swp
 .*.swo
