@@ -6,7 +6,11 @@
 set -xeu
 
 # Configuration
-PHP_VERSIONS=("8.1.33" "8.2.30" "8.3.30" "8.4.17" "8.5.2")
+# PHP branches to build. The latest patch release of each branch is resolved at
+# build time from php.net (see resolve_php_versions), so a new point release
+# needs no edit here. Set PHP_VERSIONS="8.4.26 8.5.11" in the environment to
+# pin exact versions instead (e.g. for offline builds).
+PHP_BRANCHES=("8.1" "8.2" "8.3" "8.4" "8.5")
 # AST versions to build
 AST_VERSIONS=("1.1.2" "1.1.3")
 
@@ -15,6 +19,13 @@ AST_VERSIONS=("1.1.2" "1.1.3")
 PHAN_RELEASED_VERSIONS=("5.5.2" "6.0.8")
 # For v6 dev, we'll build from git branches
 PHAN_V6_DEV_BRANCH="v6"  # v6 development is in v6 branch
+
+# Defaults preselected in the UI. Default Phan is the last entry of
+# PHAN_RELEASED_VERSIONS and default ast is the last entry of AST_VERSIONS.
+DEFAULT_PHP_VERSION="8.4"
+
+# Everything above is the single source of truth for versions: build-multi.sh
+# writes manifest.json and static/demo.js populates the dropdowns from it.
 
 # Output directory structure: builds/php-{VERSION}/phan-{VERSION}/
 BUILD_ROOT="builds"
@@ -30,6 +41,66 @@ get_short_version() {
     local version=$1
     echo "$version" | sed -E 's/^([0-9]+)\.([0-9]+).*/\1\2/'
 }
+
+# Patch main/main.c so that display_errors=stderr writes to stderr for every
+# SAPI, not only cli/cgi/phpdbg. The embed SAPI used by pib_eval.c relies on it.
+# Only this one condition is changed; the rest of main.c stays as upstream.
+patch_main_c() {
+    local main_c=$1
+    local marker="Phan Demo patch: write errors to stderr regardless of SAPI"
+    local pattern='^\(\s*\)if ((!strcmp(sapi_module.name, "cli") || !strcmp(sapi_module.name, "cgi") || !strcmp(sapi_module.name, "phpdbg")) &&$'
+
+    if grep -q "$marker" "$main_c"; then
+        echo "main.c already patched"
+        return 0
+    fi
+    local matches
+    matches=$(grep -c "$pattern" "$main_c" || true)
+    if [ "$matches" != "1" ]; then
+        echo "Error: expected exactly 1 line to patch in $main_c, found $matches" >&2
+        echo "Upstream main.c changed; update patch_main_c in build-multi.sh" >&2
+        exit 1
+    fi
+    sed -i "s#$pattern#\1/* $marker */\n\1if (#" "$main_c"
+    grep -q "$marker" "$main_c" || { echo "Error: patching $main_c failed" >&2; exit 1; }
+    echo "Patched $main_c"
+}
+
+# Resolve each branch in PHP_BRANCHES to its latest release, one per line
+resolve_php_versions() {
+    local active
+    active=$(curl -sf https://www.php.net/releases/active.php) || {
+        echo "Failed to fetch https://www.php.net/releases/active.php" >&2
+        exit 1
+    }
+    local branch version
+    for branch in "${PHP_BRANCHES[@]}"; do
+        version=$(php -r '
+            [, $active, $branch] = $argv;
+            foreach (json_decode($active, true) as $major) {
+                if (isset($major[$branch]["version"])) {
+                    echo $major[$branch]["version"];
+                    exit;
+                }
+            }
+            // Branch is no longer active (EOL): look up its final release
+            $r = json_decode(@file_get_contents("https://www.php.net/releases/index.php?json&version=$branch"), true);
+            echo $r["version"] ?? "";
+        ' -- "$active" "$branch")
+        if [ -z "$version" ]; then
+            echo "Could not resolve the latest release of PHP $branch" >&2
+            exit 1
+        fi
+        echo "$version"
+    done
+}
+
+if [ -z "${PHP_VERSIONS:-}" ]; then
+    mapfile -t PHP_VERSIONS < <(resolve_php_versions)
+else
+    read -ra PHP_VERSIONS <<< "$PHP_VERSIONS"
+fi
+echo "PHP versions to build: ${PHP_VERSIONS[*]}"
 
 # Function to download and build a Phan phar from a release
 download_phan_release() {
@@ -223,11 +294,13 @@ build_php_ast_combo() {
 
     mkdir -p "$output_dir"
 
-    # Check if already built
-    if [ -f "${output_dir}/php.wasm" ] && [ -f "${output_dir}/php.js" ]; then
-        echo "Already built: ${output_dir}"
+    # Check if already built for this exact PHP version
+    if [ -f "${output_dir}/php.wasm" ] && [ -f "${output_dir}/php.js" ] && \
+       [ "$(cat "${output_dir}/version.txt" 2>/dev/null)" = "$php_version" ]; then
+        echo "Already built: ${output_dir} (PHP ${php_version})"
         return 0
     fi
+    rm -f "${output_dir}"/php.wasm "${output_dir}"/php.js "${output_dir}"/php.wasm.br "${output_dir}"/php.js.br
 
     # Download PHP source if needed
     if [ ! -d "$php_path" ]; then
@@ -249,18 +322,8 @@ build_php_ast_combo() {
         tar xf "${php_path}.tar.xz"
     fi
 
-    # Apply error handler patch (use version-specific main.c)
-    # Convert short version (81, 82, etc) to dotted format (8.1, 8.2, etc)
-    local version_major="${php_short:0:1}"
-    local version_minor="${php_short:1}"
-    local main_c_file="main-${version_major}.${version_minor}.c"
-
-    echo "Applying error handler patch: ${main_c_file}"
-    if [ ! -f "$main_c_file" ]; then
-        echo "Error: $main_c_file not found!" >&2
-        exit 1
-    fi
-    cp "$main_c_file" "${php_path}/main/main.c"
+    # Apply the stderr error handler patch to upstream main.c
+    patch_main_c "${php_path}/main/main.c"
 
     # Download and setup ast extension if needed
     local ast_path="ast-${ast_version}"
@@ -387,6 +450,7 @@ build_php_ast_combo() {
 
         # Copy to output directory (no .data file needed without preloaded files)
         cp out/php.wasm out/php.js "../${output_dir}/"
+        echo "$php_version" > "../${output_dir}/version.txt"
     )
 
     echo "Successfully built: ${output_dir}"
@@ -466,29 +530,60 @@ for phar in phan-*.phar; do
 done
 echo ""
 
-# Generate manifest.json with phar file mtimes for cache-busting
-echo "Generating manifest.json with phar mtimes..."
-{
-    echo "{"
-    first=true
-    for phar in phan-*.phar; do
-        if [ -f "$phar" ]; then
-            # Get mtime in seconds since epoch
-            mtime=$(stat -c %Y "$phar" 2>/dev/null || stat -f %m "$phar" 2>/dev/null)
-            if [ -n "$mtime" ]; then
-                if [ "$first" = false ]; then
-                    echo ","
-                fi
-                echo -n "  \"$phar\": $mtime"
-                first=false
-            fi
-        fi
-    done
-    echo ""
-    echo "}"
-} > manifest.json
+# Generate manifest.json: the version lists, UI defaults, available builds and
+# phar mtimes (for cache-busting). static/demo.js reads this at page load.
+echo "Generating manifest.json..."
+php -r '
+    [, $phpVersions, $astVersions, $phanReleased, $phanDev, $defaultPhp, $buildRoot] = $argv;
+    $shortVersion = function ($v) { return preg_replace("/^(\d+)\.(\d+).*/", "$1$2", $v); };
 
-echo "Generated manifest.json"
+    $php = [];
+    foreach (explode(" ", $phpVersions) as $v) {
+        $php[] = ["value" => $shortVersion($v), "label" => preg_replace("/^(\d+\.\d+).*/", "$1", $v), "full" => $v];
+    }
+    $ast = [];
+    foreach (explode(" ", $astVersions) as $v) {
+        $ast[] = ["value" => $v, "label" => $v];
+    }
+    // Phan 6+ requires php-ast 1.1.3. The newest release is the UI default.
+    $phan = [];
+    foreach (explode(" ", $phanReleased) as $v) {
+        $phan[] = ["value" => $v, "label" => $v, "minAst" => (int)$v >= 6 ? "1.1.3" : null];
+    }
+    $defaultPhan = end($phan)["value"];
+    $phan[] = ["value" => $phanDev, "label" => "v6 dev", "minAst" => "1.1.3"];
+
+    $builds = [];
+    foreach (glob("$buildRoot/php-*/ast-*/php.wasm") as $wasm) {
+        if (preg_match("#/php-(\d+)/ast-([\d.]+)/#", $wasm, $m)) {
+            $builds[] = ["php" => $m[1], "ast" => $m[2]];
+        }
+    }
+    // Only phars for listed versions: deploy-to-gh-pages.sh removes any others
+    $phars = [];
+    foreach ($phan as $p) {
+        $phar = "phan-" . $p["value"] . ".phar";
+        if (file_exists($phar)) {
+            $phars[$phar] = filemtime($phar);
+        }
+    }
+
+    echo json_encode([
+        "php" => $php,
+        "phan" => $phan,
+        "ast" => $ast,
+        "defaults" => [
+            "php" => $shortVersion($defaultPhp),
+            "phan" => $defaultPhan,
+            "ast" => end($ast)["value"],
+        ],
+        "builds" => $builds,
+        "phars" => $phars,
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), "\n";
+' -- "${PHP_VERSIONS[*]}" "${AST_VERSIONS[*]}" "${PHAN_RELEASED_VERSIONS[*]}" "v6-dev" "$DEFAULT_PHP_VERSION" "$BUILD_ROOT" > manifest.json
+
+echo "Generated manifest.json:"
+cat manifest.json
 echo ""
 
 # Add Brotli compression for better download performance
@@ -527,5 +622,5 @@ fi
 echo ""
 
 echo "Next steps:"
-echo "1. Update static/demo.js to dynamically load .phar files"
-echo "2. Test with: python3 -m http.server --bind 127.0.0.1 8081"
+echo "1. Test with: python3 -m http.server --bind 127.0.0.1 8081"
+echo "2. Commit and run ./deploy-to-gh-pages.sh"

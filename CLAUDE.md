@@ -22,14 +22,16 @@ into WebAssembly that runs in modern browsers (Firefox/Chrome, requires 4GB+ RAM
 The project now supports building multiple PHP and Phan version combinations. Users can select their desired versions via dropdown menus in the UI.
 
 **Supported versions:**
-- PHP: 8.1, 8.2, 8.3, 8.4, 8.5 RC2
-- Phan: 5.5.1, 5.5.2, v6-dev (dynamically loaded)
+- PHP: branches 8.1 through 8.5, each at its latest release as resolved from php.net at build time
+- Phan: 5.5.2, 6.0.8, v6-dev (dynamically loaded)
 - php-ast: 1.1.2, 1.1.3 (user-selectable)
+
+**Single source of truth:** `build-multi.sh` is the only place versions are configured. It writes `manifest.json`, and `static/demo.js` populates the version dropdowns, defaults and ast constraints from that file at page load. `index.html` contains empty `<select>` elements only.
 
 **Note:**
 - Phan .phar files are loaded dynamically at runtime (not embedded in builds)
 - Phan v6-dev is built from the v6 branch using `internal/make_phar`
-- PHP 8.4, 8.5, and Phan v6-dev all require php-ast 1.1.3 (ast 1.1.2 is incompatible and will be disabled automatically)
+- PHP 8.4, 8.5, and Phan 6.x all require php-ast 1.1.3. The UI derives this from the manifest: an ast version is offered only if a build exists for the selected PHP version and it meets the selected Phan version's `minAst`.
 - VLD (Vulcan Logic Dumper) extension is included for opcode visualization
 - Opcache is not available (requires shared memory support not available in WebAssembly)
 
@@ -44,31 +46,33 @@ docker run --rm -v $(pwd):/src emscripten/emsdk bash -c 'apt update && DEBIAN_FR
 3. Run `bash build-multi.sh`
 
 The multi-version build process (`build-multi.sh`):
-1. Downloads Phan 5.5.1 and 5.5.2 from GitHub releases
-2. Builds Phan v6-dev from v6 branch using `internal/make_phar`
-3. For each PHP version (8.1, 8.2, 8.3, 8.4, 8.5 RC2):
+1. Resolves the latest release of each branch in `PHP_BRANCHES` from https://www.php.net/releases/active.php (falling back to `releases/index.php?json&version=X.Y` for end-of-life branches). Set `PHP_VERSIONS="8.4.26 8.5.11"` in the environment to pin exact versions.
+2. Downloads the Phan releases in `PHAN_RELEASED_VERSIONS` from GitHub
+3. Builds Phan v6-dev from v6 branch using `internal/make_phar`
+4. For each PHP version:
    - For each compatible php-ast version (1.1.2, 1.1.3):
        - Downloads PHP source
-       - Applies version-specific error handler patch (`main-8.{1,2,3,4,5}.c`)
+       - Patches one condition in `main/main.c` (`patch_main_c`) so `display_errors=stderr` works for the embed SAPI
        - Downloads php-ast extension (version-specific)
        - Clones VLD extension from GitHub (latest version)
        - Configures PHP with minimal extensions + VLD using `emconfigure`
        - Compiles with `emmake` and `emcc`
        - Outputs PHP WebAssembly without embedded .phar
-4. Outputs to `builds/php-{VERSION}/ast-{VERSION}/` containing:
+5. Outputs to `builds/php-{VERSION}/ast-{VERSION}/` containing:
    - `php.wasm`
    - `php.js`
+   - `version.txt` (the exact PHP version; a build is redone when the resolved version differs)
+6. Writes `manifest.json` with the version lists, UI defaults, available builds and phar mtimes
 
 Phan .phar files are placed in the root directory and loaded dynamically at runtime:
-   - `phan-5.5.1.phar`
    - `phan-5.5.2.phar`
+   - `phan-6.0.8.phar`
    - `phan-v6-dev.phar`
 
-**Note:** This creates only 7 builds total (vs. 19 in old system):
+**Note:** This creates 8 builds total:
 - 3 PHP versions (8.1, 8.2, 8.3) × 2 ast = 6 builds
 - 2 PHP versions (8.4, 8.5) × 1 ast (1.1.3 only) = 2 builds
-- Minus 1 duplicate = **7 unique builds**
-Each build takes 5-15 minutes. **Total build time reduced by ~63%** compared to old system.
+Each build takes 5-15 minutes.
 
 ### Building Single Versions (Legacy)
 
@@ -91,14 +95,12 @@ Then open http://localhost:8080/
 
 **C Layer**:
 - `pib_eval.c` - Main WebAssembly interface exposing `pib_eval()` function that initializes PHP embed SAPI and evaluates code
-- `main-8.{1,2,3,4,5}.c` - Version-specific patched PHP main.c files with custom error handling
-  - Patch removes SAPI check for stderr output (allows embed SAPI to write to stderr)
-  - Each version corresponds to its PHP version (main-8.1.c for PHP 8.1, etc.)
+- `patch_main_c` in `build-multi.sh` - Edits one condition in upstream `main/main.c` so errors go to stderr for any SAPI. It fails the build if the line is not found exactly once, which signals that upstream changed and the pattern needs updating.
 
 **Web Interface** (`index.html`):
 - Ace editor for code input
-- Version selectors for PHP, Phan, and php-ast versions
-  - php-ast version selector enforces constraints (PHP 8.5 requires ast 1.1.3)
+- Version selectors for PHP, Phan, and php-ast versions, populated from `manifest.json`
+  - php-ast options are disabled when no build exists for the selected PHP version or the selected Phan version needs a newer ast
 - Two execution modes:
   1. **Analyze button** - Runs Phan static analyzer on the code
   2. **Run button** - Executes PHP code directly
@@ -112,19 +114,20 @@ Then open http://localhost:8080/
 - `#eval_wrapper_source` textarea contains wrapper for direct PHP execution with error handling
 
 **Dynamic Version Loading**:
+- `static/demo.js` fetches `manifest.json` first, fills the dropdowns and applies its defaults, then applies `?php=`, `?phan=`, `?ast=` URL parameters if they name a listed version
 - `static/demo.js` dynamically loads the correct `php.js` script based on selected PHP/ast versions
 - Files are loaded from `builds/php-{VERSION}/ast-{VERSION}/` directory structure
 - Phan .phar files are fetched on-demand and loaded into the virtual filesystem using `FS_createDataFile`
 - Loaded .phar files are cached in memory to avoid re-fetching
 - When PHP/ast versions change, the WebAssembly module is reloaded with the new binaries
-- Automatic constraint enforcement: selecting PHP 8.5 automatically requires ast 1.1.3
+- Share links and gists that name a version no longer in the manifest fall back to the current selection
 
 ### Key Files
 
-- `build-multi.sh` - Multi-version build script (builds all PHP + ast combinations)
+- `build-multi.sh` - Multi-version build script and the single source of truth for versions
 - `build.sh` - Legacy single-version build script (deprecated)
 - `pib_eval.c` - WebAssembly entry point (exports `pib_eval()`)
-- `main-8.{1,2,3,4,5}.c` - Version-specific modified PHP main.c files with custom error handling
+- `manifest.json` - Generated by `build-multi.sh`; read by the UI (not in git)
 - `index.html` - Main UI with version selectors and embedded PHP runner code
 - `static/demo.js` - JavaScript handling version selection, WebAssembly loading, and dynamic .phar loading
 - `static/demo.css` - Styling for UI including version selectors and dark mode
@@ -145,22 +148,17 @@ After building, test locally by:
 
 ## Version Configuration
 
-**PHP versions** are configured in `build-multi.sh`:
-- Array: `PHP_VERSIONS=("8.1.33" "8.2.29" "8.3.26" "8.4.13" "8.5.0RC2")`
-- Also update dropdown in `index.html` `<select id="php-version">`
+All versions are configured in `build-multi.sh` only. Do not edit `index.html` or `static/demo.js` for a version change.
 
-**Phan versions** are configured in `build-multi.sh`:
-- Array: `PHAN_RELEASED_VERSIONS=("5.5.1" "5.5.2")`
-- Git branch: `PHAN_V6_DEV_BRANCH="v6"` (for v6-dev)
-- Also update dropdown in `index.html` `<select id="phan-version">`
-- v6-dev is built from v6 branch using `internal/make_phar` script
-- v6-dev requires php-ast 1.1.3+ (incompatible with ast 1.1.2)
+**PHP** - `PHP_BRANCHES=("8.1" "8.2" "8.3" "8.4" "8.5")`. Each branch's latest release is resolved from php.net at build time. `DEFAULT_PHP_VERSION="8.4"` selects the UI default.
 
-**php-ast versions** are configured in `build-multi.sh`:
-- Array: `AST_VERSIONS=("1.1.2" "1.1.3")`
-- Also update dropdown in `index.html` `<select id="ast-version">`
-- Build script automatically skips incompatible combinations (PHP 8.4/8.5/Phan v6-dev + ast 1.1.2)
-- UI automatically enforces constraints when user selects PHP 8.4, 8.5, or Phan v6-dev
+**Phan** - `PHAN_RELEASED_VERSIONS=("5.5.2" "6.0.8")`; the last entry is the UI default. `PHAN_V6_DEV_BRANCH="v6"` is built from git with `internal/make_phar`. Phan 6.x and v6-dev get `minAst: 1.1.3` in the manifest.
+
+**php-ast** - `AST_VERSIONS=("1.1.2" "1.1.3")`; the last entry is the UI default. The build skips ast 1.1.2 for PHP 8.4 and 8.5, and the UI only offers ast versions that have a build.
+
+**Releasing a new Phan version:** edit `PHAN_RELEASED_VERSIONS`, run `./build-multi.sh` (it only downloads the new phar and regenerates `manifest.json`), commit, and run `./deploy-to-gh-pages.sh`. The deploy script removes phars that are no longer in the manifest from gh-pages.
+
+**New PHP point releases** need no edit: rerunning `./build-multi.sh` resolves them and rebuilds only the directories whose `version.txt` differs.
 
 ## Publishing
 

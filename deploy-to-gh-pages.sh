@@ -86,7 +86,7 @@ if [ -d "$TEMP_DIR/.phan" ]; then
 fi
 cp "$TEMP_DIR"/*.phar . 2>/dev/null || true
 cp "$TEMP_DIR"/*.phar.info . 2>/dev/null || true
-cp "$TEMP_DIR"/*.phan.commit . 2>/dev/null || true
+cp "$TEMP_DIR"/*.phar.commit . 2>/dev/null || true
 cp "$TEMP_DIR"/manifest.json . 2>/dev/null || true
 cp "$TEMP_DIR"/*.phar.br . 2>/dev/null || true
 rm -rf "$TEMP_DIR"
@@ -112,12 +112,24 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     # Add stub files
     git add .phan/stubs/ 2>/dev/null || true
 
-    # Create commit message with version info
+    # Remove phars that are no longer listed in the manifest (old releases)
+    for phar in phan-*.phar; do
+        if [ -f "$phar" ] && ! grep -q "\"$phar\"" manifest.json; then
+            echo "Removing stale $phar from gh-pages"
+            git rm -q --cached "$phar" "${phar}.br" "${phar}.info" "${phar}.commit" 2>/dev/null || true
+            rm -f "$phar" "${phar}.br" "${phar}.info" "${phar}.commit"
+        fi
+    done
+
+    # Create commit message with version info from the manifest
     COMMIT_MSG="Deploy multi-version support
 
-- PHP versions: 8.1.33, 8.2.30, 8.3.29, 8.4.16, 8.5.1
-- Phan versions: 5.5.2, v6-dev
-- php-ast versions: 1.1.2, 1.1.3
+$(php -r '
+        $m = json_decode(file_get_contents("manifest.json"), true);
+        echo "- PHP versions: ", implode(", ", array_column($m["php"], "full")), "\n";
+        echo "- Phan versions: ", implode(", ", array_column($m["phan"], "value")), "\n";
+        echo "- php-ast versions: ", implode(", ", array_column($m["ast"], "value")), "\n";
+    ')
 - User-selectable PHP, Phan, and ast versions"
 
     git commit -m "$COMMIT_MSG"

@@ -119,26 +119,37 @@ docker run --rm -v $(pwd):/src emscripten/emsdk bash -c 'apt update && DEBIAN_FR
 
 ## Adding New Versions
 
-### Add a PHP Version
+`build-multi.sh` is the single source of truth. It writes `manifest.json`, and
+the UI builds its dropdowns, defaults and ast constraints from that file.
+Never edit `index.html` or `static/demo.js` for a version change.
 
-1. Update `build-multi.sh`:
-   ```bash
-   PHP_VERSIONS=("8.1.31" "8.2.27" "8.3.16" "8.4.2" "8.5.0RC2" "8.6.0beta1")
-   ```
+### PHP
 
-2. Update `index.html`:
-   ```html
-   <select id="php-version">
-       ...
-       <option value="86">8.6 beta1</option>
-   </select>
-   ```
+Point releases need no edit: `build-multi.sh` resolves the latest release of
+every branch in `PHP_BRANCHES` from https://www.php.net/releases/active.php
+on each run and rebuilds only what changed. To add a branch:
 
-### Add a Phan Version
+```bash
+PHP_BRANCHES=("8.1" "8.2" "8.3" "8.4" "8.5" "8.6")
+```
 
-1. Update `build-multi.sh` with new version variable
-2. Add build call in main loop
-3. Update `index.html` dropdown
+To pin exact versions (offline builds): `PHP_VERSIONS="8.4.26 8.5.11" ./build-multi.sh`
+
+### Phan
+
+```bash
+PHAN_RELEASED_VERSIONS=("5.5.2" "6.0.8")   # last entry is the UI default
+```
+
+Then `./build-multi.sh` (downloads the phar, regenerates the manifest),
+commit, and `./deploy-to-gh-pages.sh`, which also removes phars that are no
+longer listed.
+
+### php-ast
+
+```bash
+AST_VERSIONS=("1.1.2" "1.1.3")   # last entry is the UI default
+```
 
 ## Performance Considerations
 
