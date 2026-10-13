@@ -89,7 +89,6 @@ cp "$TEMP_DIR"/*.phar.info . 2>/dev/null || true
 cp "$TEMP_DIR"/*.phar.commit . 2>/dev/null || true
 cp "$TEMP_DIR"/manifest.json . 2>/dev/null || true
 cp "$TEMP_DIR"/*.phar.br . 2>/dev/null || true
-rm -rf "$TEMP_DIR"
 
 # Show status
 echo ""
@@ -116,7 +115,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     for phar in phan-*.phar; do
         if [ -f "$phar" ] && ! grep -q "\"$phar\"" manifest.json; then
             echo "Removing stale $phar from gh-pages"
-            git rm -q --cached "$phar" "${phar}.br" "${phar}.info" "${phar}.commit" 2>/dev/null || true
+            git rm -q --cached --ignore-unmatch "$phar" "${phar}.br" "${phar}.info" "${phar}.commit"
             rm -f "$phar" "${phar}.br" "${phar}.info" "${phar}.commit"
         fi
     done
@@ -153,5 +152,24 @@ fi
 echo ""
 echo "Returning to $CURRENT_BRANCH..."
 git checkout $CURRENT_BRANCH
+
+# builds/, the phars, manifest.json and .phan/stubs are tracked on gh-pages but
+# not on master, so the checkout above removed them from the working tree.
+# Put them back so the next build-multi.sh run reuses them instead of rebuilding.
+echo "Restoring build outputs to the working tree..."
+if [ -d "$TEMP_DIR/builds" ]; then
+    rm -rf builds/
+    cp -r "$TEMP_DIR/builds" .
+fi
+if [ -d "$TEMP_DIR/.phan" ]; then
+    rm -rf .phan/
+    cp -r "$TEMP_DIR/.phan" .
+fi
+cp "$TEMP_DIR"/*.phar . 2>/dev/null || true
+cp "$TEMP_DIR"/*.phar.info . 2>/dev/null || true
+cp "$TEMP_DIR"/*.phar.commit . 2>/dev/null || true
+cp "$TEMP_DIR"/manifest.json . 2>/dev/null || true
+cp "$TEMP_DIR"/*.phar.br . 2>/dev/null || true
+rm -rf "$TEMP_DIR"
 
 echo "Done!"

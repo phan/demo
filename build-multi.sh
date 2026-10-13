@@ -16,13 +16,13 @@ AST_VERSIONS=("1.1.2" "1.1.3")
 
 # Phan versions - we'll build different combinations
 # Released versions
-PHAN_RELEASED_VERSIONS=("5.5.2" "6.0.8")
+PHAN_RELEASED_VERSIONS=("5.5.2" "6.0.10")
 # For v6 dev, we'll build from git branches
 PHAN_V6_DEV_BRANCH="v6"  # v6 development is in v6 branch
 
 # Defaults preselected in the UI. Default Phan is the last entry of
 # PHAN_RELEASED_VERSIONS and default ast is the last entry of AST_VERSIONS.
-DEFAULT_PHP_VERSION="8.4"
+DEFAULT_PHP_VERSION="8.5"
 
 # Everything above is the single source of truth for versions: build-multi.sh
 # writes manifest.json and static/demo.js populates the dropdowns from it.
@@ -586,19 +586,20 @@ echo "Generated manifest.json:"
 cat manifest.json
 echo ""
 
-# Add Brotli compression for better download performance
+# Add Brotli compression for better download performance.
+# A .br file is regenerated when its source is newer (a missing .br counts as older).
 echo "Compressing files with Brotli..."
 if command -v brotli >/dev/null 2>&1; then
     compressed_count=0
 
     # Compress WASM and JS files in builds directory
     for dir in ${BUILD_ROOT}/php-*/ast-*/; do
-        if [ -f "${dir}/php.wasm" ] && [ ! -f "${dir}/php.wasm.br" ]; then
+        if [ -f "${dir}/php.wasm" ] && [ "${dir}/php.wasm" -nt "${dir}/php.wasm.br" ]; then
             brotli -9 -f "${dir}/php.wasm" -o "${dir}/php.wasm.br"
             echo "  Compressed: ${dir}/php.wasm"
             compressed_count=$((compressed_count + 1))
         fi
-        if [ -f "${dir}/php.js" ] && [ ! -f "${dir}/php.js.br" ]; then
+        if [ -f "${dir}/php.js" ] && [ "${dir}/php.js" -nt "${dir}/php.js.br" ]; then
             brotli -9 -f "${dir}/php.js" -o "${dir}/php.js.br"
             echo "  Compressed: ${dir}/php.js"
             compressed_count=$((compressed_count + 1))
@@ -607,7 +608,7 @@ if command -v brotli >/dev/null 2>&1; then
 
     # Compress Phan .phar files
     for phar in phan-*.phar; do
-        if [ -f "$phar" ] && [ ! -f "${phar}.br" ]; then
+        if [ -f "$phar" ] && [ "$phar" -nt "${phar}.br" ]; then
             brotli -9 -f "$phar" -o "${phar}.br"
             echo "  Compressed: $phar"
             compressed_count=$((compressed_count + 1))

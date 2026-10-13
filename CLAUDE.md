@@ -158,6 +158,8 @@ All versions are configured in `build-multi.sh` only. Do not edit `index.html` o
 
 **Releasing a new Phan version:** edit `PHAN_RELEASED_VERSIONS`, run `./build-multi.sh` (it only downloads the new phar and regenerates `manifest.json`), commit, and run `./deploy-to-gh-pages.sh`. The deploy script removes phars that are no longer in the manifest from gh-pages.
 
+**Incremental builds:** `build-multi.sh` skips a build directory whose `version.txt` matches the resolved PHP version. `deploy-to-gh-pages.sh` commits `builds/`, the phars and `manifest.json` on gh-pages, which means switching back to master would delete them from the working tree; the script restores them afterwards. If `builds/` is ever lost, recover it from gh-pages instead of rebuilding: `git checkout gh-pages -- builds && git reset -q -- builds`.
+
 **New PHP point releases** need no edit: rerunning `./build-multi.sh` resolves them and rebuilds only the directories whose `version.txt` differs.
 
 ## Publishing
