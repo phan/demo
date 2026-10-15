@@ -16,7 +16,7 @@ AST_VERSIONS=("1.1.2" "1.1.3")
 
 # Phan versions - we'll build different combinations
 # Released versions
-PHAN_RELEASED_VERSIONS=("5.5.2" "6.0.10")
+PHAN_RELEASED_VERSIONS=("5.5.2" "6.0.11")
 # For v6 dev, we'll build from git branches
 PHAN_V6_DEV_BRANCH="v6"  # v6 development is in v6 branch
 
