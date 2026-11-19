@@ -9,8 +9,8 @@ Phan-in-Browser is a web application that runs Phan (PHP static analyzer) and PH
 **Live demo**: https://phan.github.io/demo/
 
 The project compiles:
-- PHP 8.1-8.5 (with minimal extensions: ast, vld, bcmath, ctype, filter, json, phar, mbstring, tokenizer)
-- Phan 5.5.1, 5.5.2, or v6-dev static analyzer (dynamically loaded .phar files)
+- PHP 8.1-8.6 (with minimal extensions: ast, vld, bcmath, ctype, filter, json, phar, mbstring, tokenizer)
+- Phan 5.5.2, 6.0.11, or v6-dev static analyzer (dynamically loaded .phar files)
 - Custom C evaluation wrapper (`pib_eval.c`)
 
 into WebAssembly that runs in modern browsers (Firefox/Chrome, requires 4GB+ RAM).
@@ -22,16 +22,16 @@ into WebAssembly that runs in modern browsers (Firefox/Chrome, requires 4GB+ RAM
 The project now supports building multiple PHP and Phan version combinations. Users can select their desired versions via dropdown menus in the UI.
 
 **Supported versions:**
-- PHP: branches 8.1 through 8.5, each at its latest release as resolved from php.net at build time
-- Phan: 5.5.2, 6.0.8, v6-dev (dynamically loaded)
-- php-ast: 1.1.2, 1.1.3 (user-selectable)
+- PHP: branches 8.1 through 8.6, each at its latest release as resolved from php.net at build time
+- Phan: 5.5.2, 6.0.11, v6-dev (dynamically loaded)
+- php-ast: 1.1.2, 1.1.3, 1.1.4 (user-selectable where a build exists)
 
 **Single source of truth:** `build-multi.sh` is the only place versions are configured. It writes `manifest.json`, and `static/demo.js` populates the version dropdowns, defaults and ast constraints from that file at page load. `index.html` contains empty `<select>` elements only.
 
 **Note:**
 - Phan .phar files are loaded dynamically at runtime (not embedded in builds)
 - Phan v6-dev is built from the v6 branch using `internal/make_phar`
-- PHP 8.4, 8.5, and Phan 6.x all require php-ast 1.1.3. The UI derives this from the manifest: an ast version is offered only if a build exists for the selected PHP version and it meets the selected Phan version's `minAst`.
+- PHP 8.4, 8.5, and Phan 6.x all require php-ast 1.1.3+. PHP 8.6 requires php-ast 1.1.4, which is built only for 8.6 (`ast_supports_php` in `build-multi.sh`). The UI derives this from the manifest: an ast version is offered only if a build exists for the selected PHP version and it meets the selected Phan version's `minAst`.
 - VLD (Vulcan Logic Dumper) extension is included for opcode visualization
 - Opcache is not available (requires shared memory support not available in WebAssembly)
 
@@ -50,7 +50,7 @@ The multi-version build process (`build-multi.sh`):
 2. Downloads the Phan releases in `PHAN_RELEASED_VERSIONS` from GitHub
 3. Builds Phan v6-dev from v6 branch using `internal/make_phar`
 4. For each PHP version:
-   - For each compatible php-ast version (1.1.2, 1.1.3):
+   - For each php-ast version that `ast_supports_php` allows for that PHP version:
        - Downloads PHP source
        - Patches one condition in `main/main.c` (`patch_main_c`) so `display_errors=stderr` works for the embed SAPI
        - Downloads php-ast extension (version-specific)
@@ -66,12 +66,13 @@ The multi-version build process (`build-multi.sh`):
 
 Phan .phar files are placed in the root directory and loaded dynamically at runtime:
    - `phan-5.5.2.phar`
-   - `phan-6.0.8.phar`
+   - `phan-6.0.11.phar`
    - `phan-v6-dev.phar`
 
-**Note:** This creates 8 builds total:
-- 3 PHP versions (8.1, 8.2, 8.3) × 2 ast = 6 builds
+**Note:** This creates 9 builds total:
+- 3 PHP versions (8.1, 8.2, 8.3) × 2 ast (1.1.2, 1.1.3) = 6 builds
 - 2 PHP versions (8.4, 8.5) × 1 ast (1.1.3 only) = 2 builds
+- PHP 8.6 × 1 ast (1.1.4 only) = 1 build
 Each build takes 5-15 minutes.
 
 ### Building Single Versions (Legacy)
@@ -142,7 +143,7 @@ After building, test locally by:
 1. Running local web server (see "Running Locally")
 2. Opening browser to http://localhost:8080/
 3. Selecting different PHP, Phan, and php-ast versions from dropdowns
-4. Verifying PHP 8.4, 8.5, and Phan v6-dev auto-select ast 1.1.3 and disable ast 1.1.2
+4. Verifying PHP 8.4, 8.5, and Phan v6-dev auto-select ast 1.1.3 and disable ast 1.1.2; PHP 8.6 auto-selects ast 1.1.4 and disables the others
 5. Testing both "Analyze" (Phan) and "Run" (PHP execution) buttons
 6. Verifying version switching works correctly
 
@@ -150,11 +151,11 @@ After building, test locally by:
 
 All versions are configured in `build-multi.sh` only. Do not edit `index.html` or `static/demo.js` for a version change.
 
-**PHP** - `PHP_BRANCHES=("8.1" "8.2" "8.3" "8.4" "8.5")`. Each branch's latest release is resolved from php.net at build time. `DEFAULT_PHP_VERSION="8.4"` selects the UI default.
+**PHP** - `PHP_BRANCHES=("8.1" "8.2" "8.3" "8.4" "8.5" "8.6")`. Each branch's latest release is resolved from php.net at build time. `DEFAULT_PHP_VERSION="8.5"` selects the UI default. Switch it to 8.6 once a released Phan supports PHP 8.6 (6.0.12; until then only v6-dev does).
 
-**Phan** - `PHAN_RELEASED_VERSIONS=("5.5.2" "6.0.8")`; the last entry is the UI default. `PHAN_V6_DEV_BRANCH="v6"` is built from git with `internal/make_phar`. Phan 6.x and v6-dev get `minAst: 1.1.3` in the manifest.
+**Phan** - `PHAN_RELEASED_VERSIONS=("5.5.2" "6.0.11")`; the last entry is the UI default. `PHAN_V6_DEV_BRANCH="v6"` is built from git with `internal/make_phar`. Phan 6.x and v6-dev get `minAst: 1.1.3` in the manifest.
 
-**php-ast** - `AST_VERSIONS=("1.1.2" "1.1.3")`; the last entry is the UI default. The build skips ast 1.1.2 for PHP 8.4 and 8.5, and the UI only offers ast versions that have a build.
+**php-ast** - `AST_VERSIONS=("1.1.2" "1.1.3" "1.1.4")`. `ast_supports_php` decides which PHP versions each is built for: 1.1.2 for PHP < 8.4, 1.1.3 for PHP < 8.6, 1.1.4 for PHP 8.6+. The UI default is the newest ast with a build for `DEFAULT_PHP_VERSION`, and the UI only offers ast versions that have a build for the selected PHP version.
 
 **Releasing a new Phan version:** edit `PHAN_RELEASED_VERSIONS`, run `./build-multi.sh` (it only downloads the new phar and regenerates `manifest.json`), commit, and run `./deploy-to-gh-pages.sh`. The deploy script removes phars that are no longer in the manifest from gh-pages.
 

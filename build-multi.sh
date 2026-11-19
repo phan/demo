@@ -10,9 +10,9 @@ set -xeu
 # build time from php.net (see resolve_php_versions), so a new point release
 # needs no edit here. Set PHP_VERSIONS="8.4.26 8.5.11" in the environment to
 # pin exact versions instead (e.g. for offline builds).
-PHP_BRANCHES=("8.1" "8.2" "8.3" "8.4" "8.5")
-# AST versions to build
-AST_VERSIONS=("1.1.2" "1.1.3")
+PHP_BRANCHES=("8.1" "8.2" "8.3" "8.4" "8.5" "8.6")
+# AST versions to build. ast_supports_php decides which PHP versions each is built for.
+AST_VERSIONS=("1.1.2" "1.1.3" "1.1.4")
 
 # Phan versions - we'll build different combinations
 # Released versions
@@ -21,7 +21,8 @@ PHAN_RELEASED_VERSIONS=("5.5.2" "6.0.11")
 PHAN_V6_DEV_BRANCH="v6"  # v6 development is in v6 branch
 
 # Defaults preselected in the UI. Default Phan is the last entry of
-# PHAN_RELEASED_VERSIONS and default ast is the last entry of AST_VERSIONS.
+# PHAN_RELEASED_VERSIONS and default ast is the newest ast version that has a
+# build for DEFAULT_PHP_VERSION.
 DEFAULT_PHP_VERSION="8.5"
 
 # Everything above is the single source of truth for versions: build-multi.sh
@@ -40,6 +41,21 @@ fi
 get_short_version() {
     local version=$1
     echo "$version" | sed -E 's/^([0-9]+)\.([0-9]+).*/\1\2/'
+}
+
+# Succeeds if php-ast version $1 is built for PHP version $2.
+# 1.1.2 does not compile on PHP 8.4+, and PHP 8.6 needs 1.1.4. 1.1.4 is built
+# only for 8.6+, since its only change is 8.6 support.
+ast_supports_php() {
+    local ast_version=$1
+    local php_short
+    php_short=$(get_short_version "$2")
+    case "$ast_version" in
+        1.1.2) [ "$php_short" -lt 84 ] ;;
+        1.1.3) [ "$php_short" -lt 86 ] ;;
+        1.1.4) [ "$php_short" -ge 86 ] ;;
+        *) true ;;
+    esac
 }
 
 # Patch main/main.c so that display_errors=stderr writes to stderr for every
@@ -359,9 +375,9 @@ build_php_ast_combo() {
     # Configure and build
     echo "Configuring PHP ${php_version}"
 
-    # PHP 8.5 needs HAVE_REALLOCARRAY defined since emscripten provides it
+    # PHP 8.5+ needs HAVE_REALLOCARRAY defined since emscripten provides it
     # Add LTO and PIC flags for better optimization (from php-wasm best practices)
-    if [[ "$php_version" == 8.5* ]]; then
+    if [ "$php_short" -ge 85 ]; then
         export CFLAGS='-O3 -flto -fPIC -DZEND_MM_ERROR=0 -DHAVE_REALLOCARRAY=1'
     else
         export CFLAGS='-O3 -flto -fPIC -DZEND_MM_ERROR=0'
@@ -375,7 +391,7 @@ build_php_ast_combo() {
 
         # PHP version-specific configure flags
         local extra_flags=""
-        if [[ "$php_version" == 8.5* ]]; then
+        if [ "$php_short" -ge 85 ]; then
             extra_flags="--disable-opcache-jit"
         fi
 
@@ -499,13 +515,8 @@ echo "Note: Phan .phar files will be loaded dynamically at runtime"
 
 for php_version in "${PHP_VERSIONS[@]}"; do
     for ast_version in "${AST_VERSIONS[@]}"; do
-        # Skip ast 1.1.2 for PHP 8.4 and 8.5 (incompatible)
-        if [[ "$php_version" == 8.4* ]] && [[ "$ast_version" == "1.1.2" ]]; then
-            echo "Skipping PHP ${php_version} + ast ${ast_version} (incompatible)"
-            continue
-        fi
-        if [[ "$php_version" == 8.5* ]] && [[ "$ast_version" == "1.1.2" ]]; then
-            echo "Skipping PHP ${php_version} + ast ${ast_version} (incompatible)"
+        if ! ast_supports_php "$ast_version" "$php_version"; then
+            echo "Skipping PHP ${php_version} + ast ${ast_version} (not built for this PHP version)"
             continue
         fi
 
@@ -559,6 +570,19 @@ php -r '
             $builds[] = ["php" => $m[1], "ast" => $m[2]];
         }
     }
+    // Default ast: the newest one with a build for the default PHP version
+    $defaultAst = end($ast)["value"];
+    $defaultAstBuilds = [];
+    foreach ($builds as $b) {
+        if ($b["php"] === $shortVersion($defaultPhp)) {
+            $defaultAstBuilds[] = $b["ast"];
+        }
+    }
+    if ($defaultAstBuilds) {
+        usort($defaultAstBuilds, "version_compare");
+        $defaultAst = end($defaultAstBuilds);
+    }
+
     // Only phars for listed versions: deploy-to-gh-pages.sh removes any others
     $phars = [];
     foreach ($phan as $p) {
@@ -575,7 +599,7 @@ php -r '
         "defaults" => [
             "php" => $shortVersion($defaultPhp),
             "phan" => $defaultPhan,
-            "ast" => end($ast)["value"],
+            "ast" => $defaultAst,
         ],
         "builds" => $builds,
         "phars" => $phars,
