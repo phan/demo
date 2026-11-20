@@ -394,11 +394,14 @@ build_php_ast_combo() {
         if [ "$php_short" -ge 85 ]; then
             extra_flags="--disable-opcache-jit"
         fi
+        # PHP 8.6+ embed SAPI compiles the CLI sources and refuses --disable-cli
+        if [ "$php_short" -lt 86 ]; then
+            extra_flags="$extra_flags --disable-cli"
+        fi
 
         emconfigure ./configure \
           --disable-all \
           --disable-cgi \
-          --disable-cli \
           --disable-rpath \
           --disable-phpdbg \
           --with-valgrind=no \
@@ -438,7 +441,9 @@ build_php_ast_combo() {
             build_cores=1
         fi
         echo "Using $build_cores cores (of $cores available)"
-        emmake make -j$build_cores
+        # Build only the embed library (libs/libphp.a). PHP 8.6+ also enables the
+        # CLI SAPI, whose standalone binary does not link under emscripten.
+        emmake make -j$build_cores libphp.la
 
         rm -rf out
         mkdir -p out

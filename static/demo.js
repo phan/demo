@@ -947,6 +947,7 @@ function applyVersionMetadata(metadata) {
     document.getElementById('php-version').value = currentPhpVersion;
     document.getElementById('phan-version').value = currentPhanVersion;
     document.getElementById('ast-version').value = currentAstVersion;
+    enforceAstConstraints();
     updatePhanVersionInfo();
 }
 
@@ -3302,6 +3303,8 @@ if (!window.WebAssembly) {
         document.getElementById('php-version').value = currentPhpVersion;
         document.getElementById('phan-version').value = currentPhanVersion;
         document.getElementById('ast-version').value = currentAstVersion;
+        // The default ast may have no build for the requested PHP version (e.g. PHP 8.6 needs ast 1.1.4)
+        enforceAstConstraints();
 
         console.log('Initial versions:', {php: currentPhpVersion, phan: currentPhanVersion, ast: currentAstVersion});
 
